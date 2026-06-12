@@ -1,9 +1,10 @@
 import { IMG_SCHEME, SEARCH_DOMAIN } from '@shared/constants'
-import { getLens } from '@shared/lenses'
+import { resolveLens } from '@shared/lenses'
+import type { Lens } from '@shared/lenses'
 import type { PageRequest } from './types'
 
-export function buildSystemPrompt(lensId: string): string {
-  const lens = getLens(lensId)
+export function buildSystemPrompt(lensId: string, customLenses: Lens[] = []): string {
+  const lens = resolveLens(lensId, customLenses)
   return [
     'You are the rendering engine of Slopera, a browser that dreams the web.',
     'No real network exists. For every URL you receive, you produce the complete',

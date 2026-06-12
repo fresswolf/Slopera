@@ -29,9 +29,12 @@ export interface Bookmark {
   position: number
 }
 
+import type { Lens } from './lenses'
+
 export interface SettingsView {
   model: string
   lens: string
+  customLenses: Lens[]
   hasAnthropicKey: boolean
   hasFalKey: boolean
   encryptionAvailable: boolean
@@ -76,6 +79,10 @@ export interface SloperaApi {
   settings: {
     get: () => Promise<SettingsView>
     set: (update: SettingsUpdate) => Promise<SettingsView>
+  }
+  lenses: {
+    add: (label: string, instructions: string) => Promise<SettingsView>
+    remove: (id: string) => Promise<SettingsView>
   }
   cache: {
     stats: () => Promise<CacheStats>

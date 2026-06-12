@@ -88,6 +88,16 @@ export function registerIpc(deps: IpcDeps): void {
     return parsed.success ? settings.update(parsed.data) : settings.view()
   })
 
+  ipcMain.handle('lenses:add', (_e, label: unknown, instructions: unknown) => {
+    const l = z.string().trim().min(1).max(40).safeParse(label)
+    const i = z.string().trim().min(1).max(2000).safeParse(instructions)
+    return l.success && i.success ? settings.addLens(l.data, i.data) : settings.view()
+  })
+  ipcMain.handle('lenses:remove', (_e, id: unknown) => {
+    const parsed = z.string().max(64).safeParse(id)
+    return parsed.success ? settings.removeLens(parsed.data) : settings.view()
+  })
+
   ipcMain.handle('cache:stats', (): CacheStats => cacheStats(pages, imagesDir))
   ipcMain.handle('cache:clear', (): CacheStats => {
     pages.clearAll()

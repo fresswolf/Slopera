@@ -21,7 +21,7 @@ export const LENSES: Lens[] = [
   },
   {
     id: 'slop',
-    label: 'Slop',
+    label: 'Extra slop',
     instructions: [
       'Maximum AI slop. Surreal, overconfident, algorithm-poisoned content:',
       'impossible products with billions of five-star reviews, listicles that lose',
@@ -45,6 +45,21 @@ export const LENSES: Lens[] = [
 
 export const DEFAULT_LENS = 'straight'
 
-export function getLens(id: string): Lens {
-  return LENSES.find((l) => l.id === id) ?? LENSES[0]!
+/** Look up a lens among built-ins and user-defined ones; falls back to the default. */
+export function resolveLens(id: string, custom: Lens[] = []): Lens {
+  return LENSES.find((l) => l.id === id) ?? custom.find((l) => l.id === id) ?? LENSES[0]!
+}
+
+/** Derive a stable, unique lens id from a user-chosen label. */
+export function slugifyLensId(label: string, taken: Iterable<string>): string {
+  const base =
+    label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'lens'
+  const takenSet = new Set(taken)
+  if (!takenSet.has(base)) return base
+  let i = 2
+  while (takenSet.has(`${base}-${i}`)) i++
+  return `${base}-${i}`
 }

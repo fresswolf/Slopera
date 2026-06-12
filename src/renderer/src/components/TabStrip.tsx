@@ -4,13 +4,17 @@ import { useUI } from '../store'
 export function TabStrip() {
   const tabs = useUI((s) => s.tabs)
   const activeId = useUI((s) => s.activeId)
+  const closeOverlay = useUI((s) => s.closeOverlay)
 
   return (
     <div className="drag-region flex h-[38px] shrink-0 items-end gap-1 bg-zinc-900 px-2 pl-[84px]">
       {tabs.map((tab) => (
         <div
           key={tab.id}
-          onClick={() => window.slopera.tabs.activate(tab.id)}
+          onClick={() => {
+            closeOverlay()
+            window.slopera.tabs.activate(tab.id)
+          }}
           className={`no-drag group flex h-[30px] min-w-0 max-w-[200px] flex-1 cursor-default items-center gap-1.5 rounded-t-lg px-3 text-xs ${
             tab.id === activeId
               ? 'bg-zinc-800 text-zinc-100'
@@ -36,7 +40,10 @@ export function TabStrip() {
         </div>
       ))}
       <button
-        onClick={() => window.slopera.tabs.create()}
+        onClick={() => {
+          closeOverlay()
+          window.slopera.tabs.create()
+        }}
         className="no-drag mb-1 rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
         aria-label="New tab"
       >

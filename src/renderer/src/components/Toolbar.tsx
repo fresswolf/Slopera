@@ -29,6 +29,7 @@ export function Toolbar() {
   const active = useUI(selectActiveTab)
   const overlay = useUI((s) => s.overlay)
   const toggleOverlay = useUI((s) => s.toggleOverlay)
+  const closeOverlay = useUI((s) => s.closeOverlay)
   const focusNonce = useUI((s) => s.focusNonce)
   const settings = useUI((s) => s.settings)
   const updateSettings = useUI((s) => s.updateSettings)
@@ -54,23 +55,43 @@ export function Toolbar() {
 
   return (
     <div className="flex h-[48px] shrink-0 items-center gap-1 bg-zinc-800 px-2">
-      <IconButton onClick={() => window.slopera.tabs.back()} disabled={!active?.canGoBack} label="Back">
+      <IconButton
+        onClick={() => {
+          closeOverlay()
+          window.slopera.tabs.back()
+        }}
+        disabled={!active?.canGoBack}
+        label="Back"
+      >
         <ArrowLeft size={16} />
       </IconButton>
       <IconButton
-        onClick={() => window.slopera.tabs.forward()}
+        onClick={() => {
+          closeOverlay()
+          window.slopera.tabs.forward()
+        }}
         disabled={!active?.canGoForward}
         label="Forward"
       >
         <ArrowRight size={16} />
       </IconButton>
       <IconButton
-        onClick={() => (loading ? window.slopera.tabs.stop() : window.slopera.tabs.reload())}
+        onClick={() => {
+          closeOverlay()
+          if (loading) window.slopera.tabs.stop()
+          else window.slopera.tabs.reload()
+        }}
         label={loading ? 'Stop' : 'Re-dream this page'}
       >
         {loading ? <X size={16} /> : <RotateCw size={16} />}
       </IconButton>
-      <IconButton onClick={() => window.slopera.tabs.home()} label="Home">
+      <IconButton
+        onClick={() => {
+          closeOverlay()
+          window.slopera.tabs.home()
+        }}
+        label="Home"
+      >
         <Home size={16} />
       </IconButton>
 
@@ -85,6 +106,7 @@ export function Toolbar() {
         onBlur={() => setEditing(false)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
+            closeOverlay()
             window.slopera.tabs.navigate(value)
             setEditing(false)
             inputRef.current?.blur()
@@ -101,15 +123,22 @@ export function Toolbar() {
 
       <select
         value={settings?.lens ?? 'straight'}
-        onChange={(e) => void updateSettings({ lens: e.target.value })}
+        onChange={(e) => {
+          if (e.target.value === '__new__') {
+            toggleOverlay('settings')
+            return
+          }
+          void updateSettings({ lens: e.target.value })
+        }}
         title="Lens — the register the web is dreamed in"
         className="h-[28px] rounded-md border border-zinc-700 bg-zinc-900 px-1.5 text-xs text-zinc-300 outline-none focus:border-violet-400"
       >
-        {LENSES.map((lens) => (
+        {[...LENSES, ...(settings?.customLenses ?? [])].map((lens) => (
           <option key={lens.id} value={lens.id}>
             {lens.label}
           </option>
         ))}
+        <option value="__new__">＋ New lens…</option>
       </select>
 
       <IconButton

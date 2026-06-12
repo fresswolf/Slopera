@@ -19,8 +19,10 @@ built like a product.
   site; the wrongness seeps through on its own (news from a parallel timeline,
   products that don't exist). No winking.
 - **Lenses.** A toolbar dropdown of prompt presets changes the register:
-  `Straight` (default), `Slop`, `1998`, plus room for more. The active lens is
-  stamped onto every cached page.
+  `Straight` (default), `Extra slop`, `1998` — plus **user-defined lenses**:
+  a builder in Settings (name + flavor prompt) adds custom registers to the
+  dropdown. The active lens is stamped onto every cached page; each lens
+  dreams its own cache.
 - **Latency is aesthetic.** Pages stream in top-to-bottom like dial-up.
   Images trickle in afterwards, one by one.
 

@@ -53,7 +53,11 @@ app.whenReady().then(() => {
   const generator: PageGenerator =
     process.env.SLOPERA_FAKE_GEN === '1'
       ? new FixturePageGenerator()
-      : new AnthropicPageGenerator(() => ({ apiKey: settings.anthropicKey, model: settings.model }))
+      : new AnthropicPageGenerator(() => ({
+          apiKey: settings.anthropicKey,
+          model: settings.model,
+          customLenses: settings.customLenses,
+        }))
 
   const pageCtl = registerPageProtocol(ses, { settings, pages, bibles, bookmarks, generator })
   registerImageProtocol(ses, settings, imagesDir)

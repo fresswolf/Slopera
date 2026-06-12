@@ -16,6 +16,8 @@ interface UIState {
   bumpFocus: () => void
   loadSettings: () => Promise<void>
   updateSettings: (update: SettingsUpdate) => Promise<void>
+  addLens: (label: string, instructions: string) => Promise<void>
+  removeLens: (id: string) => Promise<void>
   loadBookmarks: () => Promise<void>
   addBookmark: (url: string, title: string) => Promise<void>
   removeBookmark: (id: number) => Promise<void>
@@ -36,6 +38,9 @@ export const useUI = create<UIState>()((set, get) => ({
 
   loadSettings: async () => set({ settings: await window.slopera.settings.get() }),
   updateSettings: async (update) => set({ settings: await window.slopera.settings.set(update) }),
+  addLens: async (label, instructions) =>
+    set({ settings: await window.slopera.lenses.add(label, instructions) }),
+  removeLens: async (id) => set({ settings: await window.slopera.lenses.remove(id) }),
   loadBookmarks: async () => set({ bookmarks: await window.slopera.bookmarks.list() }),
   addBookmark: async (url, title) => set({ bookmarks: await window.slopera.bookmarks.add(url, title) }),
   removeBookmark: async (id) => set({ bookmarks: await window.slopera.bookmarks.remove(id) }),

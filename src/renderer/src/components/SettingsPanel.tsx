@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { MODELS } from '@shared/constants'
 import { LENSES } from '@shared/lenses'
@@ -13,8 +14,12 @@ function formatBytes(n: number): string {
 export function SettingsPanel() {
   const settings = useUI((s) => s.settings)
   const updateSettings = useUI((s) => s.updateSettings)
+  const addLens = useUI((s) => s.addLens)
+  const removeLens = useUI((s) => s.removeLens)
   const [anthropicKey, setAnthropicKey] = useState('')
   const [falKey, setFalKey] = useState('')
+  const [lensLabel, setLensLabel] = useState('')
+  const [lensInstructions, setLensInstructions] = useState('')
   const [stats, setStats] = useState<CacheStats | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -112,7 +117,7 @@ export function SettingsPanel() {
               onChange={(e) => void updateSettings({ lens: e.target.value })}
               className={field}
             >
-              {LENSES.map((l) => (
+              {[...LENSES, ...(settings?.customLenses ?? [])].map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.label}
                 </option>
@@ -122,6 +127,61 @@ export function SettingsPanel() {
               Each lens dreams its own web — cached pages are per-lens.
             </p>
           </div>
+        </section>
+
+        <section className="mb-8 space-y-4">
+          <h2 className="text-sm font-semibold text-zinc-300">Custom lenses</h2>
+          {(settings?.customLenses ?? []).map((l) => (
+            <div key={l.id} className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-zinc-200">{l.label}</div>
+                <div className="truncate text-xs text-zinc-500" title={l.instructions}>
+                  {l.instructions}
+                </div>
+              </div>
+              <button
+                onClick={() => void removeLens(l.id)}
+                className="rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-red-300"
+                aria-label={`Delete lens ${l.label}`}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+          <div>
+            <label className={label}>Name</label>
+            <input
+              value={lensLabel}
+              onChange={(e) => setLensLabel(e.target.value)}
+              placeholder="Solarpunk"
+              maxLength={40}
+              className={field}
+            />
+          </div>
+          <div>
+            <label className={label}>Flavor — how should the web be dreamed?</label>
+            <textarea
+              value={lensInstructions}
+              onChange={(e) => setLensInstructions(e.target.value)}
+              placeholder="Render every site as if civilization went right: lush rooftop gardens in the stock photos, repair guides instead of upsells, optimistic typography…"
+              maxLength={2000}
+              rows={4}
+              className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-violet-400"
+            />
+          </div>
+          <button
+            onClick={() => {
+              if (lensLabel.trim() === '' || lensInstructions.trim() === '') return
+              void addLens(lensLabel, lensInstructions).then(() => {
+                setLensLabel('')
+                setLensInstructions('')
+              })
+            }}
+            disabled={lensLabel.trim() === '' || lensInstructions.trim() === ''}
+            className="rounded-md bg-violet-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-40"
+          >
+            Add lens &amp; switch to it
+          </button>
         </section>
 
         <section className="mb-8 space-y-3">

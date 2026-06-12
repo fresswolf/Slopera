@@ -1,25 +1,27 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { BIBLE_MODEL, PAGE_MAX_TOKENS } from '@shared/constants'
+import type { Lens } from '@shared/lenses'
 import { buildBiblePrompt, buildSystemPrompt, buildUserPrompt } from './prompts'
 import type { PageGenerator, PageRequest } from './types'
 
 export interface AnthropicConfig {
   apiKey: string | null
   model: string
+  customLenses: Lens[]
 }
 
 export class AnthropicPageGenerator implements PageGenerator {
   constructor(private readonly getConfig: () => AnthropicConfig) {}
 
   async *streamPage(req: PageRequest, signal: AbortSignal): AsyncGenerator<string> {
-    const { apiKey, model } = this.getConfig()
+    const { apiKey, model, customLenses } = this.getConfig()
     if (!apiKey) throw new Error('No Anthropic API key configured')
     const client = new Anthropic({ apiKey })
     const stream = client.messages.stream(
       {
         model,
         max_tokens: PAGE_MAX_TOKENS,
-        system: buildSystemPrompt(req.lens),
+        system: buildSystemPrompt(req.lens, customLenses),
         messages: [{ role: 'user', content: buildUserPrompt(req) }],
       },
       { signal },

@@ -23,6 +23,11 @@ describe('buildSystemPrompt', () => {
   it('falls back to the default lens for unknown ids', () => {
     expect(buildSystemPrompt('nope')).toContain('earnestly')
   })
+
+  it('embeds user-defined custom lenses', () => {
+    const custom = [{ id: 'noir', label: 'Noir', instructions: 'Everything is rain-slick and lit by one neon sign.' }]
+    expect(buildSystemPrompt('noir', custom)).toContain('rain-slick')
+  })
 })
 
 describe('buildUserPrompt', () => {
