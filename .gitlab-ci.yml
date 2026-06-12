@@ -1,0 +1,32 @@
+stages: [verify, package]
+
+variables:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+verify:
+  stage: verify
+  image: node:22
+  cache:
+    key:
+      files: [package-lock.json]
+    paths: [.npm]
+  script:
+    # unit tests and the vite build don't need the electron binary
+    - npm ci --cache .npm --prefer-offline
+    - npm run lint
+    - npm run typecheck
+    - npm test
+    - npm run build
+
+# Requires a macOS GitLab runner (tag it `macos`). Run manually for releases.
+package:mac:
+  stage: package
+  when: manual
+  tags: [macos]
+  variables:
+    ELECTRON_SKIP_BINARY_DOWNLOAD: "0"
+  script:
+    - npm ci
+    - npm run package:mac
+  artifacts:
+    paths: [release/*.dmg]

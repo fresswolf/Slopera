@@ -1,0 +1,19 @@
+appId: dev.siegrist.slopera
+productName: Slopera
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+mac:
+  target: dmg
+  category: public.app-category.entertainment
+  # unsigned for now — set identity + notarize when an Apple dev account exists
+  identity: null
+win:
+  target: nsis
+linux:
+  target: AppImage
+  category: Network
+# no native modules — sqlite comes from Electron's bundled node:sqlite
+npmRebuild: false

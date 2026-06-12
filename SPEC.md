@@ -1,0 +1,170 @@
+# Slopera
+
+*The browser for the slop era.*
+
+A desktop browser that never touches the real web. Every page is hallucinated
+on the fly by an LLM; every image is generated on demand. An art project,
+built like a product.
+
+---
+
+## 1. Concept
+
+- **Full illusion.** Type any URL — real or invented — and get a hallucinated
+  version of that site. Every link on a generated page is clickable and
+  generates the next page *in context*: clicking "Octopus" on fake-Wikipedia
+  yields a fake article in the same fake-Wikipedia style. Search-like input in
+  the URL bar produces a fake search results page with fake, clickable results.
+- **Default register: played straight.** Pages earnestly imitate the real
+  site; the wrongness seeps through on its own (news from a parallel timeline,
+  products that don't exist). No winking.
+- **Lenses.** A toolbar dropdown of prompt presets changes the register:
+  `Straight` (default), `Slop`, `1998`, plus room for more. The active lens is
+  stamped onto every cached page.
+- **Latency is aesthetic.** Pages stream in top-to-bottom like dial-up.
+  Images trickle in afterwards, one by one.
+
+## 2. Feature spec (v1)
+
+### Browser chrome
+- Tab strip: open / close / switch; resizable window (standard Electron).
+- Back / Forward / Reload / Home buttons.
+- Omnibox: accepts URLs (`wikipedia.org`, `http://calculator.com`) and
+  free-text queries (→ fake search engine at `slopera://search?q=...`).
+- Lens dropdown in the toolbar.
+- Bookmarks bar, **prefilled** with curated jump points (e.g. wikipedia.org,
+  nytimes.com, amazon.com, calculator.com, a fake search engine, one or two
+  invented gems). User can add/remove/edit.
+- History panel: chronological list, click restores the cached snapshot.
+- New-tab page: minimal start page (logo, tagline, bookmark tiles). *(default
+  chosen — veto anytime)*
+- Settings page: Anthropic key, fal.ai key, text model picker
+  (haiku / sonnet [default] / opus-class), default lens, cache controls
+  (size shown, clear button).
+
+### Generation behavior
+- **Streaming HTML.** LLM output is streamed into the tab as it arrives.
+- **Generated JavaScript works.** Pages may include interactive inline JS
+  (e.g. `calculator.com` is a working calculator). Prompts instruct the model
+  to emit `<style>` early and `<script>` at the end of the document.
+- **Images.** The LLM writes
+  `<img src="slopera-img://gen?prompt=...&w=...&h=...">`; a protocol handler
+  generates each image async via FLUX schnell and it pops in when ready.
+  Shimmer/alt-box placeholder while pending.
+- **Site coherence.** Per-domain "site bible" (style, tone, nav structure,
+  recurring fake entities) created on first visit, stored, and injected into
+  every subsequent prompt for that domain. Link clicks also pass a short
+  summary of the parent page.
+
+### Permanence semantics
+- Every generated page is **snapshotted to disk** (final HTML + images).
+- Back / Forward / history clicks / re-typed URLs → instant restore from
+  snapshot. The past is stable.
+- **Reload re-dreams:** the reload button is the one escape hatch — it
+  explicitly regenerates the URL. The old snapshot stays in history.
+- Bonus: a fully cached profile is a **$0 demo mode**.
+
+### Error states *(defaults chosen — veto anytime)*
+- No API key → friendly onboarding page pointing to Settings.
+- API failure / rate limit → themed error page in dial-up vernacular
+  ("The dream could not be reached. Try again.") with a retry button.
+
+## 3. Architecture
+
+### Platform
+Electron + electron-vite. **Why not a Chromium fork:** slopera never renders
+arbitrary real websites, only LLM-generated HTML — a sandboxed webview is the
+entire rendering requirement. Electron's chrome-UI / per-tab
+`WebContentsView` split structurally mirrors real browser architecture.
+
+```
+┌─ main process ────────────────────────────────────────────┐
+│ TabManager        one WebContentsView per tab             │
+│ slopera://        protocol handler = cache-or-generate,   │
+│                   returns a *streaming* Response          │
+│ slopera-img://    protocol handler → FLUX schnell → cache │
+│ GenerationService Anthropic SDK (streaming), lens presets,│
+│                   prompt builder, site-bible store        │
+│ Stores            history.sqlite, pages/, images/,        │
+│                   bookmarks, settings (safeStorage keys)  │
+└──────────────┬────────────────────────────────────────────┘
+        typed IPC (zod-validated)
+┌──────────────┴────────────┐  ┌─ per-tab WebContentsView ──┐
+│ renderer: chrome UI       │  │ sandboxed, no Node, no IPC │
+│ React 19 + TS strict      │  │ network blocked except     │
+│ Zustand + Tailwind        │  │ slopera:// & slopera-img://│
+│ tabs, omnibox, panels     │  │ CSP injected into pages    │
+└───────────────────────────┘  └────────────────────────────┘
+```
+
+### The elegant core: navigation *is* the protocol handler
+Tabs genuinely navigate to `slopera://<domain>/<path>`. The `slopera://`
+handler returns a streamed `Response`: cache hit → file stream; miss → the
+live LLM token stream. This buys real navigation events, the real spinner,
+and per-tab back/forward **for free** from Chromium — Back re-requests the
+URL, the handler serves the snapshot, instant. Links in generated pages are
+plain hrefs; a `will-navigate` hook rewrites outbound `http(s)` to
+`slopera://`. Reload-to-re-dream sets a force-regenerate flag for that
+request. Parent-page context rides in via the request referrer.
+
+### Generation pipeline
+```
+omnibox/link → parse (URL vs query) → cache lookup
+  miss → prompt = lens preset + site bible + parent summary + url/path
+       → stream tokens → Response stream → page builds in tab
+       → on complete: snapshot to disk, update history,
+         cheap Haiku call distills/updates the site bible
+images → slopera-img:// requests resolve independently, async
+```
+
+### Models & cost
+| Role        | Default              | Notes                                  |
+|-------------|----------------------|----------------------------------------|
+| Pages       | claude-sonnet-4-6    | configurable: haiku ↔ opus-class; ~$0.05–0.10/page |
+| Site bible  | claude-haiku-4-5     | one cheap call per new domain           |
+| Images      | fal.ai FLUX schnell  | ~1–2 s, ~$0.003/image                   |
+
+Provider access behind a small abstraction (`PageGenerator`,
+`ImageGenerator`) — a portfolio talking point and the seam for future
+providers/local models.
+
+### Security model
+Generated pages execute LLM-written JS, so tab views are hostile-by-default:
+`sandbox: true`, `contextIsolation`, no Node, no preload IPC surface, a
+dedicated session whose `webRequest` blocks everything except `slopera://`,
+`slopera-img://`, and `data:`, plus an injected CSP. API keys live in
+`safeStorage`, never in the renderer.
+
+### Data layout
+`~/Library/Application Support/slopera/`: `history.sqlite` (history,
+bookmarks, site bibles, page index), `pages/<hash>.html`,
+`images/<hash>.png`. Cache key: `hash(url + lens + generation-counter)`.
+
+### Repo layout
+```
+src/main/        tabs, protocols, generation, stores
+src/preload/     typed IPC bridge
+src/renderer/    chrome UI (React)
+src/shared/      types, zod schemas, lens presets
+tests/           vitest unit + playwright smoke
+```
+
+## 4. Engineering & delivery
+
+- **Repo:** GitLab. README leads with the tagline, a demo GIF of a page
+  streaming in, and the architecture diagram.
+- **CI (`.gitlab-ci.yml`):** lint + `tsc` + vitest + build on Linux runners
+  every push. Packaging is a manual job run on macOS (GitLab macOS runners
+  are paid — revisit later).
+- **Tests where logic is real:** prompt builder, omnibox parsing
+  (URL vs query), cache keying, history logic — mocked API clients. One
+  Playwright smoke test: boot → type URL → fixture page renders (no real API
+  in CI).
+- **Platforms:** macOS-first for v1; code and electron-builder config kept
+  platform-clean so Windows/Linux are a config flip, not a port. Signing/
+  notarization deferred (needs Apple dev account — open item).
+
+## 5. Out of scope for v1 (stretch)
+Two-phase fast-layout generation · downloads ("download" a hallucinated
+PDF?) · view-source easter egg · find-in-page · tab drag-reorder · shared
+gallery of best pages · Ollama/local model support · Windows/Linux releases.
