@@ -1,3 +1,5 @@
+import type { LinkContext } from '@shared/extract'
+
 export interface PageRequest {
   /** Normalized slopera:// URL of the page being dreamed. */
   url: string
@@ -10,6 +12,8 @@ export interface PageRequest {
   /** Where the user clicked the link that led here. */
   parentUrl: string | null
   parentSummary: string | null
+  /** What the clicked link said about this destination, if resolvable. */
+  link: LinkContext | null
 }
 
 export interface PageGenerator {

@@ -55,8 +55,20 @@ built like a product.
   Shimmer/alt-box placeholder while pending.
 - **Site coherence.** Per-domain "site bible" (style, tone, nav structure,
   recurring fake entities) created on first visit, stored, and injected into
-  every subsequent prompt for that domain. Link clicks also pass a short
-  summary of the parent page.
+  every subsequent prompt for that domain.
+- **Link-target fidelity.** A clicked link's own text is the strongest signal
+  for what its destination should contain. On navigation the page protocol
+  reads the parent snapshot's HTML, finds the `<a>` whose href resolves to the
+  child URL (matched through the same rewrite navigation uses, so it's exact),
+  and passes the anchor text — plus the link's `title` and any inner `<img alt>`
+  for thumbnail/"read more" links — into the child prompt as the authoritative
+  description of the page. The short parent-page summary still rides along as
+  backdrop. Carries coherence one hop deep; no extra model calls. Works even
+  when the link is clicked before its page finished streaming: the parent isn't
+  snapshotted yet, so the handler reads the in-memory partial buffer of the
+  in-flight generation, which already contains the clicked link. (Custom-scheme
+  handlers get no referrer, so the navigation layer records the source page
+  directly — see protocol section.)
 
 ### Permanence semantics
 - Every generated page is **snapshotted to disk** (final HTML + images).
@@ -107,12 +119,16 @@ and per-tab back/forward **for free** from Chromium — Back re-requests the
 URL, the handler serves the snapshot, instant. Links in generated pages are
 plain hrefs; a `will-navigate` hook rewrites outbound `http(s)` to
 `slopera://`. Reload-to-re-dream sets a force-regenerate flag for that
-request. Parent-page context rides in via the request referrer.
+request. Custom-scheme handlers receive no referrer, so `will-navigate` (and
+the new-tab opener) record the source page in a parent map keyed by child URL;
+the next generation of that URL consumes it to inject the parent summary and
+the clicked link's text.
 
 ### Generation pipeline
 ```
 omnibox/link → parse (URL vs query) → cache lookup
-  miss → prompt = lens preset + site bible + parent summary + url/path
+  miss → prompt = lens preset + site bible + parent summary
+                  + clicked-link text + url/path
        → stream tokens → Response stream → page builds in tab
        → on complete: snapshot to disk, update history,
          cheap Haiku call distills/updates the site bible

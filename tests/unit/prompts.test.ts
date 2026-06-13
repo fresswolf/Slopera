@@ -10,6 +10,7 @@ const base: PageRequest = {
   bible: null,
   parentUrl: null,
   parentSummary: null,
+  link: null,
 }
 
 describe('buildSystemPrompt', () => {
@@ -51,6 +52,39 @@ describe('buildUserPrompt', () => {
     })
     expect(prompt).toContain('slopera://wikipedia.org/')
     expect(prompt).toContain('An encyclopedia front page.')
+  })
+
+  it('leads with the clicked link label and keeps the parent summary', () => {
+    const prompt = buildUserPrompt({
+      ...base,
+      parentUrl: 'slopera://youtube.com/',
+      parentSummary: 'The YouTube home feed.',
+      link: { text: 'Learn AI dev in 30 minutes', title: null, alt: null },
+    })
+    expect(prompt).toContain('clicking a link labeled "Learn AI dev in 30 minutes"')
+    expect(prompt).toContain('For context, that page was about: The YouTube home feed.')
+    expect(prompt).toContain('destination of that link')
+  })
+
+  it('describes thumbnail links by their image alt text', () => {
+    const prompt = buildUserPrompt({
+      ...base,
+      parentUrl: 'slopera://youtube.com/',
+      parentSummary: null,
+      link: { text: null, title: null, alt: 'A cat playing piano' },
+    })
+    expect(prompt).toContain('clicking a thumbnail showing "A cat playing piano"')
+  })
+
+  it('falls back to summary-only phrasing when the link has no label', () => {
+    const prompt = buildUserPrompt({
+      ...base,
+      parentUrl: 'slopera://wikipedia.org/',
+      parentSummary: 'An encyclopedia front page.',
+      link: null,
+    })
+    expect(prompt).toContain('following a link on slopera://wikipedia.org/')
+    expect(prompt).not.toContain('clicking a link')
   })
 
   it('switches into search-engine mode on gargle.com', () => {

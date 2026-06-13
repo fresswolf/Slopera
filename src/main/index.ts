@@ -78,7 +78,12 @@ app.whenReady().then(() => {
     },
   })
 
-  const tabs = new TabManager(win, { settings, history, markForRegen: pageCtl.markForRegen })
+  const tabs = new TabManager(win, {
+    settings,
+    history,
+    markForRegen: pageCtl.markForRegen,
+    recordParent: pageCtl.recordParent,
+  })
   tabs.onState((snapshot) => {
     if (!win.isDestroyed()) win.webContents.send('tabs:state', snapshot)
   })

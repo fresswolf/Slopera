@@ -1,6 +1,6 @@
 import type { Session } from 'electron'
 import { PAGE_SCHEME } from '@shared/constants'
-import { extractSummary, extractTitle } from '@shared/extract'
+import { extractLinkContext, extractSummary, extractTitle } from '@shared/extract'
 import { FenceStripper } from '@shared/fences'
 import { normalizePageUrl, pageKey } from '@shared/omnibox'
 import type { SettingsStore } from '../settings'
@@ -43,10 +43,23 @@ export interface PageProtocolDeps {
 export interface PageProtocolController {
   /** Mark a URL so its next request regenerates instead of hitting the cache. */
   markForRegen: (url: string, lens: string) => void
+  /**
+   * Remember which page a navigation came from. Electron does not surface a
+   * referrer to custom-scheme protocol handlers, so the navigation layer
+   * (will-navigate) tells us directly; the next generation of `childUrl` reads
+   * it to honor the clicked link. Keyed by normalized child URL.
+   */
+  recordParent: (childUrl: string, parentUrl: string) => void
 }
 
 export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): PageProtocolController {
   const regenKeys = new Set<string>()
+  const pendingParents = new Map<string, string>()
+  // HTML-so-far of in-flight (and mid-stream-abandoned) generations, keyed by
+  // pageKey. Lets a link clicked before its page finished streaming still carry
+  // context: the snapshot doesn't exist yet (finalize never ran), but the
+  // partial buffer already holds the clicked link.
+  const liveBuffers = new Map<string, { html: string }>()
 
   ses.protocol.handle(PAGE_SCHEME, async (req) => {
     try {
@@ -70,6 +83,8 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
     const lens = deps.settings.lens
     const key = pageKey(norm, lens)
     const force = regenKeys.delete(key)
+    const parentUrl = pendingParents.get(norm) ?? ''
+    pendingParents.delete(norm)
 
     if (!force) {
       const snap = deps.pages.latest(key)
@@ -89,20 +104,37 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
       path: parsed.pathname + parsed.search,
       lens,
       bible: deps.bibles.get(host, lens),
-      ...parentContext(req.referrer, lens),
+      ...parentContext(parentUrl, norm, lens),
     }
 
     return streamGeneration(genReq, key)
   }
 
-  function parentContext(referrer: string, lens: string): Pick<PageRequest, 'parentUrl' | 'parentSummary'> {
-    const none = { parentUrl: null, parentSummary: null }
-    if (!referrer) return none
-    const norm = normalizePageUrl(referrer)
+  function parentContext(
+    parentUrl: string,
+    childUrl: string,
+    lens: string,
+  ): Pick<PageRequest, 'parentUrl' | 'parentSummary' | 'link'> {
+    const none = { parentUrl: null, parentSummary: null, link: null }
+    if (!parentUrl) return none
+    const norm = normalizePageUrl(parentUrl)
     if (!norm) return none
-    const parent = deps.pages.latest(pageKey(norm, lens))
-    if (!parent?.summary) return none
-    return { parentUrl: norm, parentSummary: parent.summary }
+    const pkey = pageKey(norm, lens)
+    const snap = deps.pages.latest(pkey)
+    let html = snap ? deps.pages.read(snap.hash) : null
+    let summary = snap?.summary ?? null
+    if (!html) {
+      // Page still streaming (or abandoned mid-stream): use the partial buffer.
+      const live = liveBuffers.get(pkey)?.html
+      if (live) {
+        html = live
+        summary = extractSummary(live)
+      }
+    }
+    if (!html) return none
+    const link = extractLinkContext(html, norm, childUrl)
+    if (!summary && !link) return none
+    return { parentUrl: norm, parentSummary: summary, link }
   }
 
   async function streamGeneration(genReq: PageRequest, key: string): Promise<Response> {
@@ -121,12 +153,15 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
     const stripper = new FenceStripper()
     const encoder = new TextEncoder()
     let acc = ''
+    const buf = { html: '' }
+    liveBuffers.set(key, buf)
 
     const body = new ReadableStream<Uint8Array>({
       async start(controller) {
         const emit = (text: string) => {
           if (text === '') return
           acc += text
+          buf.html = acc
           controller.enqueue(encoder.encode(text))
         }
         try {
@@ -139,6 +174,9 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
           emit(stripper.flush())
           controller.close()
           finalize(genReq, key, acc)
+          // Snapshot now canonical; drop the partial. A mid-stream abort leaves
+          // the buffer in place so the child it navigated to can still read it.
+          liveBuffers.delete(key)
         } catch (err) {
           if (!ac.signal.aborted) {
             // Mid-stream failure: surface it in the page, don't snapshot.
@@ -179,6 +217,10 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
   return {
     markForRegen(url, lens) {
       regenKeys.add(pageKey(url, lens))
+    },
+    recordParent(childUrl, parentUrl) {
+      const norm = normalizePageUrl(childUrl)
+      if (norm) pendingParents.set(norm, parentUrl)
     },
   }
 }

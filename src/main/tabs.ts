@@ -17,6 +17,8 @@ export interface TabManagerDeps {
   settings: SettingsStore
   history: HistoryStore
   markForRegen: (url: string, lens: string) => void
+  /** Tell the page protocol which page a navigation came from (no referrer exists). */
+  recordParent: (childUrl: string, parentUrl: string) => void
 }
 
 export class TabManager {
@@ -189,15 +191,27 @@ export class TabManager {
     const wc = tab.view.webContents
 
     wc.on('will-navigate', (event, url) => {
-      if (url.startsWith('slopera://')) return
+      // No referrer reaches a custom-scheme handler, so record the source page
+      // here for the page protocol to honor the clicked link's intent.
+      const parent = wc.getURL()
+      if (url.startsWith('slopera://')) {
+        this.deps.recordParent(url, parent)
+        return
+      }
       event.preventDefault()
       const rewritten = httpToSlopera(url)
-      if (rewritten) void wc.loadURL(rewritten)
+      if (rewritten) {
+        this.deps.recordParent(rewritten, parent)
+        void wc.loadURL(rewritten)
+      }
     })
 
     wc.setWindowOpenHandler(({ url }) => {
       const target = url.startsWith('slopera://') ? url : httpToSlopera(url)
-      if (target) this.create(target)
+      if (target) {
+        this.deps.recordParent(target, wc.getURL())
+        this.create(target)
+      }
       return { action: 'deny' }
     })
 

@@ -1,4 +1,5 @@
 import { IMG_SCHEME, SEARCH_DOMAIN } from '@shared/constants'
+import type { LinkContext } from '@shared/extract'
 import { resolveLens } from '@shared/lenses'
 import type { Lens } from '@shared/lenses'
 import type { PageRequest } from './types'
@@ -79,7 +80,16 @@ export function buildUserPrompt(req: PageRequest, today = new Date()): string {
     parts.push('', 'First visit to this domain: establish a strong, memorable site identity.')
   }
 
-  if (req.parentUrl && req.parentSummary) {
+  const arrival = req.link && linkArrival(req.link)
+  if (req.parentUrl && arrival) {
+    parts.push('', `The user arrived by ${arrival} on ${req.parentUrl}.`)
+    if (req.parentSummary) parts.push(`For context, that page was about: ${req.parentSummary}`)
+    parts.push(
+      'This page is the destination of that link. It must deliver exactly what the link',
+      'promised — same topic, same title, same subject matter. Treat the link as the',
+      'authoritative description of what this page contains.',
+    )
+  } else if (req.parentUrl && req.parentSummary) {
     parts.push(
       '',
       `The user arrived by following a link on ${req.parentUrl}, a page about:`,
@@ -89,6 +99,18 @@ export function buildUserPrompt(req: PageRequest, today = new Date()): string {
   }
 
   return parts.join('\n')
+}
+
+/** Render the clicked link's signal as a clause: "clicking a link labeled …". */
+function linkArrival(link: LinkContext): string | null {
+  if (link.text) {
+    return link.title
+      ? `clicking a link labeled "${link.text}" (described as "${link.title}")`
+      : `clicking a link labeled "${link.text}"`
+  }
+  if (link.alt) return `clicking a thumbnail showing "${link.alt}"`
+  if (link.title) return `clicking a link described as "${link.title}"`
+  return null
 }
 
 export function buildBiblePrompt(domain: string, html: string): string {
