@@ -97,6 +97,14 @@ export function registerIpc(deps: IpcDeps): void {
     const i = z.string().trim().min(1).max(2000).safeParse(instructions)
     return l.success && i.success ? settings.addLens(l.data, i.data) : settings.view()
   })
+  ipcMain.handle('lenses:update', (_e, id: unknown, label: unknown, instructions: unknown) => {
+    const idParsed = z.string().max(64).safeParse(id)
+    const l = z.string().trim().min(1).max(40).safeParse(label)
+    const i = z.string().trim().min(1).max(2000).safeParse(instructions)
+    return idParsed.success && l.success && i.success
+      ? settings.updateLens(idParsed.data, l.data, i.data)
+      : settings.view()
+  })
   ipcMain.handle('lenses:remove', (_e, id: unknown) => {
     const parsed = z.string().max(64).safeParse(id)
     return parsed.success ? settings.removeLens(parsed.data) : settings.view()

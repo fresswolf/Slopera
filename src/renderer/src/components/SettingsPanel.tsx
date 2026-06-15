@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   DEFAULT_OPENROUTER_IMAGE_MODEL,
@@ -9,6 +9,7 @@ import {
   OPENROUTER_PAGE_MODELS,
 } from '@shared/constants'
 import { LENSES } from '@shared/lenses'
+import type { Lens } from '@shared/lenses'
 import type { CacheStats, SettingsUpdate } from '@shared/types'
 import { useUI } from '../store'
 
@@ -29,6 +30,7 @@ export function SettingsPanel() {
   const updateSettings = useUI((s) => s.updateSettings)
   const closeOverlay = useUI((s) => s.closeOverlay)
   const addLens = useUI((s) => s.addLens)
+  const updateLens = useUI((s) => s.updateLens)
   const removeLens = useUI((s) => s.removeLens)
   const [keyDrafts, setKeyDrafts] = useState<Record<KeyName, string>>({
     anthropicKey: '',
@@ -219,21 +221,12 @@ export function SettingsPanel() {
         <section className="mb-8 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-300">Custom lenses</h2>
           {(settings?.customLenses ?? []).map((l) => (
-            <div key={l.id} className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <div className="text-sm text-zinc-200">{l.label}</div>
-                <div className="truncate text-xs text-zinc-500" title={l.instructions}>
-                  {l.instructions}
-                </div>
-              </div>
-              <button
-                onClick={() => void removeLens(l.id)}
-                className="rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-red-300"
-                aria-label={`Delete lens ${l.label}`}
-              >
-                <X size={13} />
-              </button>
-            </div>
+            <CustomLensRow
+              key={l.id}
+              lens={l}
+              onSave={(label, instructions) => updateLens(l.id, label, instructions)}
+              onRemove={() => removeLens(l.id)}
+            />
           ))}
           <div>
             <label className={labelCls}>Name</label>
@@ -346,6 +339,101 @@ function KeyField({
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+function CustomLensRow({
+  lens,
+  onSave,
+  onRemove,
+}: {
+  lens: Lens
+  onSave: (label: string, instructions: string) => Promise<void>
+  onRemove: () => Promise<void>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [label, setLabel] = useState(lens.label)
+  const [instructions, setInstructions] = useState(lens.instructions)
+
+  const startEdit = () => {
+    setLabel(lens.label)
+    setInstructions(lens.instructions)
+    setEditing(true)
+  }
+
+  const save = () => {
+    if (label.trim() === '' || instructions.trim() === '') return
+    void onSave(label, instructions).then(() => setEditing(false))
+  }
+
+  if (editing) {
+    return (
+      <div className="space-y-2 rounded-md border border-zinc-700 bg-zinc-900/60 px-3 py-3">
+        <div>
+          <label className={labelCls}>Name</label>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            maxLength={40}
+            className={field}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Flavor — how should the web be dreamed?</label>
+          <textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            maxLength={2000}
+            rows={4}
+            className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-violet-400"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={save}
+            disabled={label.trim() === '' || instructions.trim() === ''}
+            className="rounded-md bg-violet-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-40"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+          >
+            Cancel
+          </button>
+        </div>
+        <p className="text-xs text-zinc-600">
+          Editing a lens keeps its already-dreamed pages — reload a page to re-dream it with the new
+          flavor.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <div className="text-sm text-zinc-200">{lens.label}</div>
+        <div className="truncate text-xs text-zinc-500" title={lens.instructions}>
+          {lens.instructions}
+        </div>
+      </div>
+      <button
+        onClick={startEdit}
+        className="rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-violet-300"
+        aria-label={`Edit lens ${lens.label}`}
+      >
+        <Pencil size={13} />
+      </button>
+      <button
+        onClick={() => void onRemove()}
+        className="rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-red-300"
+        aria-label={`Delete lens ${lens.label}`}
+      >
+        <X size={13} />
+      </button>
     </div>
   )
 }

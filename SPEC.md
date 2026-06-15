@@ -21,7 +21,9 @@ built like a product.
 - **Lenses.** A toolbar dropdown of prompt presets changes the register:
   `Straight` (default), `Extra slop`, `1998` — plus **user-defined lenses**:
   a builder in Settings (name + flavor prompt) adds custom registers to the
-  dropdown. The active lens is stamped onto every cached page; each lens
+  dropdown. Custom lenses can be edited or deleted in Settings (built-ins are
+  fixed); editing keeps the lens id stable so already-dreamed pages persist
+  until reloaded. The active lens is stamped onto every cached page; each lens
   dreams its own cache.
 - **Latency is aesthetic.** Pages stream in top-to-bottom like dial-up.
   Images trickle in afterwards, one by one.

@@ -91,6 +91,7 @@ export interface SloperaApi {
   }
   lenses: {
     add: (label: string, instructions: string) => Promise<SettingsView>
+    update: (id: string, label: string, instructions: string) => Promise<SettingsView>
     remove: (id: string) => Promise<SettingsView>
   }
   cache: {

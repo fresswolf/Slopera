@@ -102,6 +102,15 @@ export class SettingsStore {
     return this.view()
   }
 
+  /** Edits a user-defined lens in place, keeping its id (and thus its cache) stable. */
+  updateLens(id: string, label: string, instructions: string): SettingsView {
+    this.data.customLenses = this.data.customLenses.map((l) =>
+      l.id === id ? { ...l, label: label.trim(), instructions: instructions.trim() } : l,
+    )
+    this.save()
+    return this.view()
+  }
+
   removeLens(id: string): SettingsView {
     this.data.customLenses = this.data.customLenses.filter((l) => l.id !== id)
     if (this.data.lens === id) this.data.lens = DEFAULT_LENS

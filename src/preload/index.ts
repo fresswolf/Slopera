@@ -37,6 +37,8 @@ const api: SloperaApi = {
   },
   lenses: {
     add: (label, instructions) => ipcRenderer.invoke('lenses:add', label, instructions),
+    update: (id, label, instructions) =>
+      ipcRenderer.invoke('lenses:update', id, label, instructions),
     remove: (id) => ipcRenderer.invoke('lenses:remove', id),
   },
   cache: {
