@@ -1,5 +1,5 @@
 import type { Session } from 'electron'
-import { PAGE_SCHEME } from '@shared/constants'
+import { BIBLE_MODEL_OPENROUTER, PAGE_SCHEME } from '@shared/constants'
 import { extractLinkContext, extractSummary, extractTitle } from '@shared/extract'
 import { FenceStripper } from '@shared/fences'
 import { normalizePageUrl, pageKey } from '@shared/omnibox'
@@ -8,6 +8,7 @@ import type { BiblesStore } from '../store/bibles'
 import type { BookmarksStore } from '../store/bookmarks'
 import type { PagesStore } from '../store/pages'
 import { generateBible } from '../generation/anthropic'
+import { generateBibleOpenRouter } from '../generation/openrouter'
 import type { PageGenerator, PageRequest } from '../generation/types'
 import { errorFooterHtml, errorHtml, homeHtml, onboardingHtml } from '../internal/html'
 
@@ -95,7 +96,7 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
     }
 
     const fake = process.env.SLOPERA_FAKE_GEN === '1'
-    if (!fake && !deps.settings.anthropicKey) return htmlResponse(onboardingHtml())
+    if (!fake && !deps.settings.activeTextKey) return htmlResponse(onboardingHtml())
 
     const parsed = new URL(norm)
     const genReq: PageRequest = {
@@ -204,13 +205,27 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
     const summary = extractSummary(html)
     deps.pages.insert({ key, url: genReq.url, lens: genReq.lens, title, summary, html })
 
-    const apiKey = deps.settings.anthropicKey
-    if (!genReq.bible && apiKey && process.env.SLOPERA_FAKE_GEN !== '1') {
-      generateBible(apiKey, genReq.host, html)
-        .then((memo) => deps.bibles.set(genReq.host, genReq.lens, memo))
-        .catch(() => {
-          // bible is an enhancement; the next page just establishes identity again
-        })
+    if (!genReq.bible && process.env.SLOPERA_FAKE_GEN !== '1') {
+      // Bible distillation follows the active text provider so an OpenRouter-only
+      // user (no Anthropic key) still gets per-domain identity.
+      const bible =
+        deps.settings.textProvider === 'openrouter'
+          ? deps.settings.openRouterKey &&
+            generateBibleOpenRouter(
+              deps.settings.openRouterKey,
+              BIBLE_MODEL_OPENROUTER,
+              genReq.host,
+              html,
+            )
+          : deps.settings.anthropicKey &&
+            generateBible(deps.settings.anthropicKey, genReq.host, html)
+      if (bible) {
+        bible
+          .then((memo) => deps.bibles.set(genReq.host, genReq.lens, memo))
+          .catch(() => {
+            // bible is an enhancement; the next page just establishes identity again
+          })
+      }
     }
   }
 

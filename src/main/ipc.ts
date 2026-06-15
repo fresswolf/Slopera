@@ -15,9 +15,13 @@ const inputSchema = z.string().max(2048)
 const idSchema = z.number().int().nonnegative()
 const settingsUpdateSchema = z
   .object({
-    model: z.string().max(64).optional(),
+    textProvider: z.enum(['anthropic', 'openrouter']).optional(),
+    model: z.string().max(256).optional(),
+    imageProvider: z.enum(['fal', 'openrouter']).optional(),
+    imageModel: z.string().max(256).optional(),
     lens: z.string().max(64).optional(),
     anthropicKey: z.string().max(512).optional(),
+    openRouterKey: z.string().max(512).optional(),
     falKey: z.string().max(512).optional(),
   })
   .strict()

@@ -1,17 +1,27 @@
 import { safeStorage } from 'electron'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { DEFAULT_MODEL, MODELS } from '@shared/constants'
+import {
+  DEFAULT_IMAGE_MODEL,
+  DEFAULT_MODEL,
+  DEFAULT_OPENROUTER_IMAGE_MODEL,
+  DEFAULT_OPENROUTER_MODEL,
+} from '@shared/constants'
+import type { ImageProvider, TextProvider } from '@shared/constants'
 import { DEFAULT_LENS, LENSES, slugifyLensId } from '@shared/lenses'
 import type { Lens } from '@shared/lenses'
 import type { SettingsUpdate, SettingsView } from '@shared/types'
 
 interface Persisted {
+  textProvider: TextProvider
   model: string
+  imageProvider: ImageProvider
+  imageModel: string
   lens: string
   customLenses: Lens[]
   /** API keys, stored as `enc:<base64>` (safeStorage) or `plain:<key>` as fallback. */
   anthropicKey?: string
+  openRouterKey?: string
   falKey?: string
 }
 
@@ -21,7 +31,14 @@ export class SettingsStore {
 
   constructor(dir: string) {
     this.file = join(dir, 'settings.json')
-    this.data = { model: DEFAULT_MODEL, lens: DEFAULT_LENS, customLenses: [] }
+    this.data = {
+      textProvider: 'anthropic',
+      model: DEFAULT_MODEL,
+      imageProvider: 'fal',
+      imageModel: DEFAULT_IMAGE_MODEL,
+      lens: DEFAULT_LENS,
+      customLenses: [],
+    }
     try {
       const raw = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<Persisted>
       this.data = { ...this.data, ...raw }
@@ -30,8 +47,20 @@ export class SettingsStore {
     }
   }
 
+  get textProvider(): TextProvider {
+    return this.data.textProvider
+  }
+
   get model(): string {
     return this.data.model
+  }
+
+  get imageProvider(): ImageProvider {
+    return this.data.imageProvider
+  }
+
+  get imageModel(): string {
+    return this.data.imageModel
   }
 
   get lens(): string {
@@ -42,8 +71,17 @@ export class SettingsStore {
     return this.decrypt(this.data.anthropicKey)
   }
 
+  get openRouterKey(): string | null {
+    return this.decrypt(this.data.openRouterKey)
+  }
+
   get falKey(): string | null {
     return this.decrypt(this.data.falKey)
+  }
+
+  /** Key for the active text provider, or null if that provider isn't configured. */
+  get activeTextKey(): string | null {
+    return this.data.textProvider === 'openrouter' ? this.openRouterKey : this.anthropicKey
   }
 
   get customLenses(): Lens[] {
@@ -73,18 +111,43 @@ export class SettingsStore {
 
   view(): SettingsView {
     return {
+      textProvider: this.data.textProvider,
       model: this.data.model,
+      imageProvider: this.data.imageProvider,
+      imageModel: this.data.imageModel,
       lens: this.data.lens,
       customLenses: this.data.customLenses,
       hasAnthropicKey: this.anthropicKey !== null,
+      hasOpenRouterKey: this.openRouterKey !== null,
       hasFalKey: this.falKey !== null,
       encryptionAvailable: safeStorage.isEncryptionAvailable(),
     }
   }
 
   update(u: SettingsUpdate): SettingsView {
-    if (u.model !== undefined && MODELS.some((m) => m.id === u.model)) {
-      this.data.model = u.model
+    // Provider switches first: a model string is only valid for one provider, so
+    // flipping providers resets the model to that provider's default unless the
+    // same call also supplies a fitting one.
+    if (u.textProvider === 'anthropic' || u.textProvider === 'openrouter') {
+      if (u.textProvider !== this.data.textProvider) {
+        this.data.textProvider = u.textProvider
+        this.data.model = u.textProvider === 'openrouter' ? DEFAULT_OPENROUTER_MODEL : DEFAULT_MODEL
+      }
+    }
+    if (u.imageProvider === 'fal' || u.imageProvider === 'openrouter') {
+      if (u.imageProvider !== this.data.imageProvider) {
+        this.data.imageProvider = u.imageProvider
+        this.data.imageModel =
+          u.imageProvider === 'openrouter' ? DEFAULT_OPENROUTER_IMAGE_MODEL : DEFAULT_IMAGE_MODEL
+      }
+    }
+    // "Custom model…" is offered for every provider, so any non-empty model string
+    // is accepted; the curated lists are a UI affordance, not a validation gate.
+    if (u.model !== undefined && u.model.trim() !== '') {
+      this.data.model = u.model.trim()
+    }
+    if (u.imageModel !== undefined && u.imageModel.trim() !== '') {
+      this.data.imageModel = u.imageModel.trim()
     }
     if (
       u.lens !== undefined &&
@@ -94,6 +157,9 @@ export class SettingsStore {
     }
     if (u.anthropicKey !== undefined) {
       this.data.anthropicKey = u.anthropicKey === '' ? undefined : this.encrypt(u.anthropicKey)
+    }
+    if (u.openRouterKey !== undefined) {
+      this.data.openRouterKey = u.openRouterKey === '' ? undefined : this.encrypt(u.openRouterKey)
     }
     if (u.falKey !== undefined) {
       this.data.falKey = u.falKey === '' ? undefined : this.encrypt(u.falKey)

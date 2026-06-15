@@ -61,14 +61,14 @@ export function buildUserPrompt(req: PageRequest, today = new Date()): string {
     const q = searchQuery(req.path)
     if (q) {
       parts.push(
-        `This is Gargle, the dream's search engine. Render the results page for the query "${q}":`,
+        `This is Google, the dream's search engine. Render the results page for the query "${q}":`,
         '8-10 diverse results from different invented-but-plausible domains, each with a',
         'linked title, a green URL line and a two-line snippet. Include a search box',
         'prefilled with the query, and the usual sponsored-result clutter at the top.',
       )
     } else {
       parts.push(
-        "This is Gargle, the dream's search engine: render its minimalist homepage with a",
+        "This is Google, the dream's search engine: render its minimalist homepage with a",
         'centered logo and search form.',
       )
     }

@@ -35,14 +35,23 @@ built like a product.
   free-text queries (→ fake search engine at `slopera://search?q=...`).
 - Lens dropdown in the toolbar.
 - Bookmarks bar, **prefilled** with curated jump points (e.g. wikipedia.org,
-  nytimes.com, amazon.com, calculator.com, a fake search engine, one or two
+  nytimes.com, amazon.com, wolframalpha.com, a fake search engine, one or two
   invented gems). User can add/remove/edit.
 - History panel: chronological list, click restores the cached snapshot.
 - New-tab page: minimal start page (logo, tagline, bookmark tiles). *(default
   chosen — veto anytime)*
-- Settings page: Anthropic key, fal.ai key, text model picker
-  (haiku / sonnet [default] / opus-class), default lens, cache controls
-  (size shown, clear button).
+- Settings page: an **API keys** block (Anthropic, OpenRouter, fal.ai — each
+  labelled with what it powers), then a **Pages** block and an **Images** block,
+  each a provider toggle + model picker. Keys save as you type (on blur) and each
+  saved key has a **Remove** button; a **Done** button (and Escape) closes the
+  panel. Every model picker is a curated dropdown ending in **"Custom model…"**
+  that reveals a free-text slug box — so any provider can run an arbitrary model.
+  Pages: Anthropic (Haiku [default] / Sonnet / Opus) **or** OpenRouter. Images:
+  fal.ai (FLUX schnell [default] / GPT Image 2) **or** OpenRouter — copy
+  recommends fal.ai as the fastest/cheapest. A provider whose key isn't saved is
+  disabled ("key req'd"); switching provider resets the model to that provider's
+  default. At least an Anthropic **or** OpenRouter key is required to dream pages.
+  Plus default-lens picker and cache controls (size shown, clear button).
 
 ### Generation behavior
 - **Streaming HTML.** LLM output is streamed into the tab as it arrives.
@@ -51,8 +60,11 @@ built like a product.
   to emit `<style>` early and `<script>` at the end of the document.
 - **Images.** The LLM writes
   `<img src="slopera-img://gen?prompt=...&w=...&h=...">`; a protocol handler
-  generates each image async via FLUX schnell and it pops in when ready.
-  Shimmer/alt-box placeholder while pending.
+  generates each image async via the configured fal.run image model
+  (FLUX schnell [default] or GPT Image 2) and it pops in when ready.
+  Shimmer/alt-box placeholder while pending. The active image model is part of
+  the image cache key, so switching engines re-dreams rather than serving a
+  stale image.
 - **Site coherence.** Per-domain "site bible" (style, tone, nav structure,
   recurring fake entities) created on first visit, stored, and injected into
   every subsequent prompt for that domain.
@@ -79,7 +91,8 @@ built like a product.
 - Bonus: a fully cached profile is a **$0 demo mode**.
 
 ### Error states *(defaults chosen — veto anytime)*
-- No API key → friendly onboarding page pointing to Settings.
+- No usable page key (neither Anthropic nor OpenRouter for the active provider)
+  → friendly onboarding page pointing to Settings.
 - API failure / rate limit → themed error page in dial-up vernacular
   ("The dream could not be reached. Try again.") with a retry button.
 
@@ -96,8 +109,8 @@ entire rendering requirement. Electron's chrome-UI / per-tab
 │ TabManager        one WebContentsView per tab             │
 │ slopera://        protocol handler = cache-or-generate,   │
 │                   returns a *streaming* Response          │
-│ slopera-img://    protocol handler → FLUX schnell → cache │
-│ GenerationService Anthropic SDK (streaming), lens presets,│
+│ slopera-img://    protocol handler → fal/OpenRouter → cache│
+│ GenerationService Anthropic or OpenRouter (streaming),    │
 │                   prompt builder, site-bible store        │
 │ Stores            history.sqlite, pages/, images/,        │
 │                   bookmarks, settings (safeStorage keys)  │
@@ -138,13 +151,24 @@ images → slopera-img:// requests resolve independently, async
 ### Models & cost
 | Role        | Default              | Notes                                  |
 |-------------|----------------------|----------------------------------------|
-| Pages       | claude-sonnet-4-6    | configurable: haiku ↔ opus-class; ~$0.05–0.10/page |
-| Site bible  | claude-haiku-4-5     | one cheap call per new domain           |
-| Images      | fal.ai FLUX schnell  | ~1–2 s, ~$0.003/image                   |
+| Pages       | claude-haiku-4-5     | Anthropic (haiku [default] ↔ opus-class) or any OpenRouter model slug |
+| Site bible  | claude-haiku-4-5     | one cheap call per new domain; on OpenRouter uses a hardcoded cheap default (`google/gemini-2.5-flash`) |
+| Images      | fal.ai FLUX schnell  | fal (↔ GPT Image 2, same fal.run key) or any OpenRouter image-capable model; FLUX ~1–2 s, ~$0.003/image |
 
-Provider access behind a small abstraction (`PageGenerator`,
-`ImageGenerator`) — a portfolio talking point and the seam for future
-providers/local models.
+**Provider routing.** Page generation sits behind `PageGenerator`:
+`AnthropicPageGenerator` (Anthropic SDK, streaming) and
+`OpenRouterPageGenerator` (`openai` SDK pointed at OpenRouter's
+OpenAI-compatible API, streaming); the active one is resolved per request from
+`settings.textProvider` so a Settings change takes effect immediately. Images
+branch in the `slopera-img://` handler: fal.run REST, or OpenRouter
+chat-completions with image output. OpenRouter image-only models (FLUX, Seedream)
+require `modalities: ["image"]` while text+image models (Gemini, GPT Image)
+require `["image", "text"]`; the curated list tags each, and a custom/unknown
+slug tries image-only first then both. Requested w/h map to the nearest
+`image_config.aspect_ratio` preset (OpenRouter image models don't take exact
+pixels); the image comes back as a base64 data-URL. OpenRouter is one shared key
+across pages and images. The active model id is part of every cache key, so
+switching engines re-dreams.
 
 ### Security model
 Generated pages execute LLM-written JS, so tab views are hostile-by-default:

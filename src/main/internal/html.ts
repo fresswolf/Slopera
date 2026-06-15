@@ -84,8 +84,8 @@ export function onboardingHtml(): string {
   <p class="tagline">The dream engine is not connected yet.</p>
   <ol>
     <li>Open <strong>Settings</strong> — the gear button in the toolbar.</li>
-    <li>Paste your <strong>Anthropic API key</strong> (pages) and optionally a
-        <strong>fal.ai key</strong> (images).</li>
+    <li>Paste an <strong>Anthropic</strong> <em>or</em> <strong>OpenRouter</strong> key
+        (pages), and optionally a <strong>fal.ai</strong> or OpenRouter key (images).</li>
     <li>Come back and type any URL. The web will be dreamed for you.</li>
   </ol>
   <p style="color:#71717a">Keys are stored encrypted on this machine and are only ever

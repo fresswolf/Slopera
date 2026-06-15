@@ -18,9 +18,9 @@ describe('omniboxToUrl', () => {
 
   it('sends queries to the dream search engine', () => {
     expect(omniboxToUrl('best pizza near me')).toBe(
-      'slopera://gargle.com/search?q=best%20pizza%20near%20me',
+      'slopera://google.com/search?q=best%20pizza%20near%20me',
     )
-    expect(omniboxToUrl('octopus')).toBe('slopera://gargle.com/search?q=octopus')
+    expect(omniboxToUrl('octopus')).toBe('slopera://google.com/search?q=octopus')
   })
 
   it('returns home for empty input', () => {

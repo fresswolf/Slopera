@@ -1,8 +1,15 @@
 import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { MODELS } from '@shared/constants'
+import {
+  DEFAULT_OPENROUTER_IMAGE_MODEL,
+  DEFAULT_OPENROUTER_MODEL,
+  IMAGE_MODELS,
+  MODELS,
+  OPENROUTER_IMAGE_MODELS,
+  OPENROUTER_PAGE_MODELS,
+} from '@shared/constants'
 import { LENSES } from '@shared/lenses'
-import type { CacheStats } from '@shared/types'
+import type { CacheStats, SettingsUpdate } from '@shared/types'
 import { useUI } from '../store'
 
 function formatBytes(n: number): string {
@@ -11,82 +18,107 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`
 }
 
+const field =
+  'h-9 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm outline-none focus:border-violet-400'
+const labelCls = 'mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500'
+
+type KeyName = 'anthropicKey' | 'openRouterKey' | 'falKey'
+
 export function SettingsPanel() {
   const settings = useUI((s) => s.settings)
   const updateSettings = useUI((s) => s.updateSettings)
+  const closeOverlay = useUI((s) => s.closeOverlay)
   const addLens = useUI((s) => s.addLens)
   const removeLens = useUI((s) => s.removeLens)
-  const [anthropicKey, setAnthropicKey] = useState('')
-  const [falKey, setFalKey] = useState('')
+  const [keyDrafts, setKeyDrafts] = useState<Record<KeyName, string>>({
+    anthropicKey: '',
+    openRouterKey: '',
+    falKey: '',
+  })
   const [lensLabel, setLensLabel] = useState('')
   const [lensInstructions, setLensInstructions] = useState('')
   const [stats, setStats] = useState<CacheStats | null>(null)
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     void window.slopera.cache.stats().then(setStats)
   }, [])
 
-  const saveKeys = () => {
-    const update: { anthropicKey?: string; falKey?: string } = {}
-    if (anthropicKey.trim() !== '') update.anthropicKey = anthropicKey.trim()
-    if (falKey.trim() !== '') update.falKey = falKey.trim()
-    if (Object.keys(update).length === 0) return
-    void updateSettings(update).then(() => {
-      setAnthropicKey('')
-      setFalKey('')
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
-    })
+  const setDraft = (name: KeyName, value: string) =>
+    setKeyDrafts((d) => ({ ...d, [name]: value }))
+
+  const commitKey = (name: KeyName) => {
+    const value = keyDrafts[name].trim()
+    if (value === '') return
+    void updateSettings({ [name]: value })
+    setDraft(name, '')
   }
 
-  const field =
-    'h-9 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm outline-none focus:border-violet-400'
-  const label = 'mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500'
+  const done = () => {
+    // Flush any key still typed but not yet blurred, then close.
+    const update: SettingsUpdate = {}
+    for (const name of ['anthropicKey', 'openRouterKey', 'falKey'] as KeyName[]) {
+      if (keyDrafts[name].trim() !== '') update[name] = keyDrafts[name].trim()
+    }
+    if (Object.keys(update).length > 0) void updateSettings(update)
+    closeOverlay()
+  }
+
+  const canDreamPages = !!settings && (settings.hasAnthropicKey || settings.hasOpenRouterKey)
 
   return (
     <div className="absolute inset-0 overflow-y-auto">
+      <button
+        onClick={done}
+        aria-label="Close settings"
+        className="fixed right-4 top-4 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-400 backdrop-blur hover:border-violet-400 hover:text-zinc-100"
+      >
+        <X size={18} />
+      </button>
       <div className="mx-auto max-w-xl px-8 py-8">
-        <h1 className="mb-6 text-xl font-semibold text-zinc-100">Settings</h1>
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-zinc-100">Settings</h1>
+        </div>
 
         <section className="mb-8 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-300">Dream engines</h2>
-          <div>
-            <label className={label}>
-              Anthropic API key (pages) {settings?.hasAnthropicKey && '— saved ✓'}
-            </label>
-            <input
-              type="password"
-              value={anthropicKey}
-              onChange={(e) => setAnthropicKey(e.target.value)}
-              placeholder={settings?.hasAnthropicKey ? '••••••••••••••• (enter to replace)' : 'sk-ant-…'}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className={label}>
-              fal.ai API key (images, optional) {settings?.hasFalKey && '— saved ✓'}
-            </label>
-            <input
-              type="password"
-              value={falKey}
-              onChange={(e) => setFalKey(e.target.value)}
-              placeholder={settings?.hasFalKey ? '••••••••••••••• (enter to replace)' : 'key-id:key-secret'}
-              className={field}
-            />
-            <p className="mt-1 text-xs text-zinc-600">
-              Without it, images render as captioned placeholders.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={saveKeys}
-              className="rounded-md bg-violet-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-400"
-            >
-              Save keys
-            </button>
-            {saved && <span className="text-xs text-emerald-400">Saved.</span>}
-          </div>
+          <h2 className="text-sm font-semibold text-zinc-300">API keys</h2>
+          <KeyField
+            name="anthropicKey"
+            label="Anthropic"
+            role="pages"
+            placeholder="sk-ant-…"
+            value={keyDrafts.anthropicKey}
+            saved={!!settings?.hasAnthropicKey}
+            onChange={setDraft}
+            onCommit={commitKey}
+            onRemove={() => void updateSettings({ anthropicKey: '' })}
+          />
+          <KeyField
+            name="openRouterKey"
+            label="OpenRouter"
+            role="pages + images"
+            placeholder="sk-or-…"
+            value={keyDrafts.openRouterKey}
+            saved={!!settings?.hasOpenRouterKey}
+            onChange={setDraft}
+            onCommit={commitKey}
+            onRemove={() => void updateSettings({ openRouterKey: '' })}
+          />
+          <KeyField
+            name="falKey"
+            label="fal.ai"
+            role="images"
+            placeholder="key-id:key-secret"
+            value={keyDrafts.falKey}
+            saved={!!settings?.hasFalKey}
+            onChange={setDraft}
+            onCommit={commitKey}
+            onRemove={() => void updateSettings({ falKey: '' })}
+          />
+          <p className={`text-xs ${canDreamPages ? 'text-zinc-600' : 'text-amber-400'}`}>
+            You need an <strong>Anthropic</strong> or <strong>OpenRouter</strong> key to dream pages.
+            Images use fal.ai or OpenRouter; without an image key they render as captioned
+            placeholders. Keys save as you type them — click <strong>Remove</strong> to clear one.
+          </p>
           {settings && !settings.encryptionAvailable && (
             <p className="text-xs text-amber-400">
               OS keychain encryption is unavailable; keys will be stored in plain text.
@@ -94,40 +126,95 @@ export function SettingsPanel() {
           )}
         </section>
 
-        <section className="mb-8 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-300">The dream</h2>
-          <div>
-            <label className={label}>Page model</label>
-            <select
-              value={settings?.model ?? ''}
-              onChange={(e) => void updateSettings({ model: e.target.value })}
-              className={field}
-            >
-              {MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className={label}>Default lens</label>
-            <select
-              value={settings?.lens ?? ''}
-              onChange={(e) => void updateSettings({ lens: e.target.value })}
-              className={field}
-            >
-              {[...LENSES, ...(settings?.customLenses ?? [])].map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-zinc-600">
-              Each lens dreams its own web — cached pages are per-lens.
-            </p>
-          </div>
-        </section>
+        {settings && (
+          <>
+            <section className="mb-8 space-y-4">
+              <h2 className="text-sm font-semibold text-zinc-300">Pages</h2>
+              <ProviderToggle
+                value={settings.textProvider}
+                options={[
+                  { id: 'anthropic', label: 'Anthropic', enabled: settings.hasAnthropicKey },
+                  { id: 'openrouter', label: 'OpenRouter', enabled: settings.hasOpenRouterKey },
+                ]}
+                onSelect={(id) => void updateSettings({ textProvider: id })}
+              />
+              {settings.textProvider === 'anthropic' ? (
+                <ModelPicker
+                  key="pages-anthropic"
+                  models={MODELS}
+                  value={settings.model}
+                  placeholder="e.g. claude-opus-4-8"
+                  onCommit={(model) => void updateSettings({ model })}
+                />
+              ) : (
+                <ModelPicker
+                  key="pages-openrouter"
+                  models={OPENROUTER_PAGE_MODELS}
+                  value={settings.model}
+                  placeholder={DEFAULT_OPENROUTER_MODEL}
+                  hint="Any OpenRouter model slug, e.g. anthropic/claude-opus-4, x-ai/grok-4."
+                  onCommit={(model) => void updateSettings({ model })}
+                />
+              )}
+            </section>
+
+            <section className="mb-8 space-y-4">
+              <h2 className="text-sm font-semibold text-zinc-300">Images</h2>
+              <ProviderToggle
+                value={settings.imageProvider}
+                options={[
+                  { id: 'fal', label: 'fal.ai', enabled: settings.hasFalKey },
+                  { id: 'openrouter', label: 'OpenRouter', enabled: settings.hasOpenRouterKey },
+                ]}
+                onSelect={(id) => void updateSettings({ imageProvider: id })}
+              />
+              {settings.imageProvider === 'fal' ? (
+                <ModelPicker
+                  key="images-fal"
+                  models={IMAGE_MODELS}
+                  value={settings.imageModel}
+                  placeholder="e.g. fal-ai/flux/schnell"
+                  onCommit={(imageModel) => void updateSettings({ imageModel })}
+                />
+              ) : (
+                <ModelPicker
+                  key="images-openrouter"
+                  models={OPENROUTER_IMAGE_MODELS}
+                  value={settings.imageModel}
+                  placeholder={DEFAULT_OPENROUTER_IMAGE_MODEL}
+                  hint="An OpenRouter image model slug. Exact pixel sizes aren't guaranteed; aspect ratio is honored."
+                  onCommit={(imageModel) => void updateSettings({ imageModel })}
+                />
+              )}
+              <p className="text-xs text-zinc-600">
+                <strong className="text-zinc-400">fal.ai is the fastest and cheapest</strong> way to
+                get images (FLUX schnell ~$0.003/img) — recommended. OpenRouter lets you try other
+                image models (FLUX.2 Klein, Gemini) — or any model slug via “Custom model…”.
+              </p>
+            </section>
+
+            <section className="mb-8 space-y-4">
+              <h2 className="text-sm font-semibold text-zinc-300">Lens</h2>
+              <div>
+                <label className={labelCls}>Default lens</label>
+                <select
+                  value={settings.lens}
+                  onChange={(e) => void updateSettings({ lens: e.target.value })}
+                  className={field}
+                >
+                  {[...LENSES, ...settings.customLenses].map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-zinc-600">
+                  Each lens dreams its own web — cached pages are per-lens.
+                </p>
+              </div>
+            </section>
+          </>
+        )}
 
         <section className="mb-8 space-y-4">
           <h2 className="text-sm font-semibold text-zinc-300">Custom lenses</h2>
@@ -149,7 +236,7 @@ export function SettingsPanel() {
             </div>
           ))}
           <div>
-            <label className={label}>Name</label>
+            <label className={labelCls}>Name</label>
             <input
               value={lensLabel}
               onChange={(e) => setLensLabel(e.target.value)}
@@ -159,7 +246,7 @@ export function SettingsPanel() {
             />
           </div>
           <div>
-            <label className={label}>Flavor — how should the web be dreamed?</label>
+            <label className={labelCls}>Flavor — how should the web be dreamed?</label>
             <textarea
               value={lensInstructions}
               onChange={(e) => setLensInstructions(e.target.value)}
@@ -207,6 +294,167 @@ export function SettingsPanel() {
           Every page is hallucinated. Nothing you read here is real.
         </footer>
       </div>
+    </div>
+  )
+}
+
+function KeyField({
+  name,
+  label,
+  role,
+  placeholder,
+  value,
+  saved,
+  onChange,
+  onCommit,
+  onRemove,
+}: {
+  name: KeyName
+  label: string
+  role: string
+  placeholder: string
+  value: string
+  saved: boolean
+  onChange: (name: KeyName, value: string) => void
+  onCommit: (name: KeyName) => void
+  onRemove: () => void
+}) {
+  return (
+    <div>
+      <label className={labelCls}>
+        {label} <span className="text-zinc-600">— {role}</span>{' '}
+        {saved && <span className="text-emerald-400">saved ✓</span>}
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="password"
+          value={value}
+          onChange={(e) => onChange(name, e.target.value)}
+          onBlur={() => onCommit(name)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
+          }}
+          placeholder={saved ? '••••••••••••••• (enter to replace)' : placeholder}
+          className={field}
+        />
+        {saved && (
+          <button
+            onClick={onRemove}
+            className="shrink-0 rounded-md border border-zinc-700 px-3 text-xs text-zinc-400 hover:border-red-400 hover:text-red-300"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+interface ProviderOption<T extends string> {
+  id: T
+  label: string
+  enabled: boolean
+}
+
+function ProviderToggle<T extends string>({
+  value,
+  options,
+  onSelect,
+}: {
+  value: T
+  options: ProviderOption<T>[]
+  onSelect: (id: T) => void
+}) {
+  return (
+    <div>
+      <label className={labelCls}>Provider</label>
+      <div className="inline-flex rounded-md border border-zinc-700 p-0.5">
+        {options.map((o) => {
+          const active = o.id === value
+          const disabled = !o.enabled && !active
+          return (
+            <button
+              key={o.id}
+              onClick={() => !disabled && onSelect(o.id)}
+              disabled={disabled}
+              title={disabled ? `${o.label} key required` : undefined}
+              className={`rounded px-3 py-1 text-sm transition-colors ${
+                active
+                  ? 'bg-violet-500 text-white'
+                  : disabled
+                    ? 'cursor-not-allowed text-zinc-600'
+                    : 'text-zinc-300 hover:bg-zinc-800'
+              }`}
+            >
+              {o.label}
+              {disabled && <span className="ml-1 text-[10px] uppercase">key req’d</span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+const CUSTOM_MODEL = '__custom__'
+
+function ModelPicker({
+  models,
+  value,
+  placeholder,
+  hint,
+  onCommit,
+}: {
+  models: ReadonlyArray<{ id: string; label: string }>
+  value: string
+  placeholder: string
+  hint?: string
+  onCommit: (model: string) => void
+}) {
+  const known = models.some((m) => m.id === value)
+  const [customMode, setCustomMode] = useState(!known)
+  const [draft, setDraft] = useState(value)
+  const commitDraft = () => {
+    const trimmed = draft.trim()
+    if (trimmed !== '' && trimmed !== value) onCommit(trimmed)
+  }
+  return (
+    <div>
+      <label className={labelCls}>Model</label>
+      <select
+        value={customMode ? CUSTOM_MODEL : value}
+        onChange={(e) => {
+          if (e.target.value === CUSTOM_MODEL) {
+            setCustomMode(true)
+            setDraft(value)
+          } else {
+            setCustomMode(false)
+            onCommit(e.target.value)
+          }
+        }}
+        className={field}
+      >
+        {models.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.label}
+          </option>
+        ))}
+        <option value={CUSTOM_MODEL}>Custom model…</option>
+      </select>
+      {customMode && (
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitDraft}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
+          }}
+          placeholder={placeholder}
+          spellCheck={false}
+          className={`${field} mt-2`}
+        />
+      )}
+      {hint && <p className="mt-1 text-xs text-zinc-600">{hint}</p>}
     </div>
   )
 }

@@ -30,20 +30,29 @@ export interface Bookmark {
 }
 
 import type { Lens } from './lenses'
+import type { ImageProvider, TextProvider } from './constants'
 
 export interface SettingsView {
+  textProvider: TextProvider
   model: string
+  imageProvider: ImageProvider
+  imageModel: string
   lens: string
   customLenses: Lens[]
   hasAnthropicKey: boolean
+  hasOpenRouterKey: boolean
   hasFalKey: boolean
   encryptionAvailable: boolean
 }
 
 export interface SettingsUpdate {
+  textProvider?: TextProvider
   model?: string
+  imageProvider?: ImageProvider
+  imageModel?: string
   lens?: string
   anthropicKey?: string
+  openRouterKey?: string
   falKey?: string
 }
 

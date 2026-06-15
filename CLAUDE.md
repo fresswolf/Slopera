@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Slopera is an Electron desktop browser that never touches the real web: every page is hallucinated by an LLM and streamed into the tab; images are generated via fal.ai FLUX. **SPEC.md is the authoritative feature spec and architecture record** — consult it before making design decisions, and keep it updated when behavior changes.
+Slopera is an Electron desktop browser that never touches the real web: every page is hallucinated by an LLM and streamed into the tab; images are generated via fal.ai FLUX (or OpenRouter). Text runs on Anthropic or OpenRouter; images on fal.ai or OpenRouter — provider chosen per request from settings. **SPEC.md is the authoritative feature spec and architecture record** — consult it before making design decisions, and keep it updated when behavior changes.
 
 ## Commands
 
@@ -39,7 +39,7 @@ The past is stable: every completed generation is snapshotted (`pages/<hash>.htm
 
 ### Generation pipeline
 
-Prompt = lens preset + per-domain "site bible" + parent-page summary (carried via the request referrer) + URL. After a page completes, a cheap Haiku call distills the domain's first page into a site bible (`bibles` table) injected into all later prompts for that domain. Providers sit behind the `PageGenerator` interface (`src/main/generation/types.ts`) — `AnthropicPageGenerator` for real use, `FixturePageGenerator` for offline. LLM output passes through `FenceStripper` (`src/shared/fences.ts`) to remove markdown code fences incrementally during streaming.
+Prompt = lens preset + per-domain "site bible" + parent-page summary (carried via the request referrer) + URL. After a page completes, a cheap call distills the domain's first page into a site bible (`bibles` table) injected into all later prompts for that domain (Anthropic Haiku, or a hardcoded cheap OpenRouter model when OpenRouter is the active provider). Providers sit behind the `PageGenerator` interface (`src/main/generation/types.ts`) — `AnthropicPageGenerator` (Anthropic SDK) and `OpenRouterPageGenerator` (the `openai` SDK pointed at OpenRouter's OpenAI-compatible API; `src/main/generation/openrouter.ts`) for real use, `FixturePageGenerator` for offline. The active text provider is resolved per request from `settings.textProvider`, so a Settings change applies immediately. LLM output passes through `FenceStripper` (`src/shared/fences.ts`) to remove markdown code fences incrementally during streaming. Images branch in `protocols/image.ts`: fal.run REST, or OpenRouter chat-completions image output — note OpenRouter image-only models (FLUX/Seedream) need `modalities: ["image"]` while text+image models (Gemini/GPT-Image) need `["image","text"]` (curated in `OPENROUTER_IMAGE_MODELS` via an `imageOnly` flag; unknown slugs try image-only then both), with dimensions sent as a nearest-preset `image_config.aspect_ratio`. Model lists and per-provider defaults live in `src/shared/constants.ts`; every model picker also offers a "Custom model…" free-text escape, so `settings.update` accepts any non-empty model string.
 
 ### Other things to know
 

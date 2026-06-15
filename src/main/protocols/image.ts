@@ -2,8 +2,16 @@ import type { Session } from 'electron'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { IMAGE_CONCURRENCY, IMG_SCHEME } from '@shared/constants'
+import type { ImageModel } from '@shared/constants'
+import {
+  DEFAULT_IMAGE_MODEL,
+  IMAGE_CONCURRENCY,
+  IMAGE_MODELS,
+  IMG_SCHEME,
+  OPENROUTER_IMAGE_MODELS,
+} from '@shared/constants'
 import { Semaphore } from '../lib/semaphore'
+import { openRouterImage } from '../generation/openrouter'
 import type { SettingsStore } from '../settings'
 
 const EXT_BY_TYPE: Record<string, string> = {
@@ -19,23 +27,36 @@ export function registerImageProtocol(ses: Session, settings: SettingsStore, ima
   ses.protocol.handle(IMG_SCHEME, async (req) => {
     const u = new URL(req.url)
     const prompt = (u.searchParams.get('prompt') ?? 'abstract texture').slice(0, 800)
-    const w = clampDim(u.searchParams.get('w'), 768)
-    const h = clampDim(u.searchParams.get('h'), 512)
-    const stem = createHash('sha256').update(`${prompt}|${w}x${h}`).digest('hex')
+    const openRouter = settings.imageProvider === 'openrouter'
+    // OpenRouter image models can't be told exact pixels, so dims are only a layout
+    // hint and need no rounding; fal models require a model-specific dimStep.
+    const falModel = openRouter ? null : resolveImageModel(settings.imageModel)
+    const modelId = falModel ? falModel.id : settings.imageModel
+    const w = clampDim(u.searchParams.get('w'), 768, falModel?.dimStep ?? 1)
+    const h = clampDim(u.searchParams.get('h'), 512, falModel?.dimStep ?? 1)
+    // Model is part of the key so switching engines re-dreams rather than serving a stale image.
+    const stem = createHash('sha256').update(`${modelId}|${prompt}|${w}x${h}`).digest('hex')
 
     for (const [type, ext] of Object.entries(EXT_BY_TYPE)) {
       const file = join(imagesDir, `${stem}.${ext}`)
       if (existsSync(file)) return imageResponse(readFileSync(file), type)
     }
 
-    const apiKey = settings.falKey
+    const apiKey = openRouter ? settings.openRouterKey : settings.falKey
     if (!apiKey || process.env.SLOPERA_FAKE_GEN === '1') {
       // No image key: the dream degrades gracefully into captioned placeholders.
       return imageResponse(Buffer.from(placeholderSvg(prompt, w, h)), 'image/svg+xml')
     }
 
     try {
-      const { bytes, contentType } = await sem.run(() => falGenerate(apiKey, prompt, w, h))
+      const { bytes, contentType } = await sem.run(() =>
+        falModel
+          ? falGenerate(apiKey, falModel, prompt, w, h)
+          : openRouterImage(apiKey, modelId, prompt, {
+              aspectRatio: nearestAspectRatio(w, h),
+              imageOnly: OPENROUTER_IMAGE_MODELS.find((m) => m.id === modelId)?.imageOnly,
+            }),
+      )
       const ext = EXT_BY_TYPE[contentType]
       if (ext) writeFileSync(join(imagesDir, `${stem}.${ext}`), bytes)
       return imageResponse(bytes, contentType)
@@ -51,11 +72,50 @@ function imageResponse(bytes: Buffer, contentType: string): Response {
   })
 }
 
-function clampDim(raw: string | null, fallback: number): number {
+/** OpenRouter takes aspect ratio as a preset string, not pixels — pick the closest. */
+const ASPECT_RATIOS: ReadonlyArray<readonly [string, number]> = [
+  ['21:9', 21 / 9],
+  ['16:9', 16 / 9],
+  ['3:2', 3 / 2],
+  ['4:3', 4 / 3],
+  ['1:1', 1],
+  ['3:4', 3 / 4],
+  ['2:3', 2 / 3],
+  ['9:16', 9 / 16],
+]
+
+function nearestAspectRatio(w: number, h: number): string {
+  const target = w / h
+  let best: readonly [string, number] = ['1:1', 1]
+  for (const candidate of ASPECT_RATIOS) {
+    if (Math.abs(candidate[1] - target) < Math.abs(best[1] - target)) best = candidate
+  }
+  return best[0]
+}
+
+function resolveImageModel(id: string): ImageModel {
+  return (
+    IMAGE_MODELS.find((m) => m.id === id) ??
+    IMAGE_MODELS.find((m) => m.id === DEFAULT_IMAGE_MODEL) ??
+    IMAGE_MODELS[0]
+  )
+}
+
+function clampDim(raw: string | null, fallback: number, step: number): number {
   const n = Number.parseInt(raw ?? '', 10)
-  if (Number.isNaN(n)) return fallback
-  const clamped = Math.min(1408, Math.max(64, n))
-  return Math.round(clamped / 8) * 8
+  const value = Number.isNaN(n) ? fallback : n
+  const clamped = Math.min(1408, Math.max(64, value))
+  return Math.round(clamped / step) * step
+}
+
+/** Both engines share fal.run's request/response shape but diverge on a few knobs. */
+function falRequestBody(modelId: string, prompt: string, width: number, height: number): unknown {
+  const common = { prompt, image_size: { width, height }, num_images: 1 }
+  if (modelId === 'gpt-image-2') {
+    // GPT Image 2 is token-priced and pricey at higher quality; keep it cheap for a browser.
+    return { ...common, quality: 'low', output_format: 'webp' }
+  }
+  return { ...common, num_inference_steps: 4, enable_safety_checker: true }
 }
 
 interface FalResponse {
@@ -64,20 +124,15 @@ interface FalResponse {
 
 async function falGenerate(
   apiKey: string,
+  model: ImageModel,
   prompt: string,
   width: number,
   height: number,
 ): Promise<{ bytes: Buffer; contentType: string }> {
-  const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
+  const res = await fetch(`https://fal.run/${model.endpoint}`, {
     method: 'POST',
     headers: { authorization: `Key ${apiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      prompt,
-      image_size: { width, height },
-      num_images: 1,
-      num_inference_steps: 4,
-      enable_safety_checker: true,
-    }),
+    body: JSON.stringify(falRequestBody(model.id, prompt, width, height)),
   })
   if (!res.ok) throw new Error(`fal.ai responded ${res.status}`)
   const json = (await res.json()) as FalResponse

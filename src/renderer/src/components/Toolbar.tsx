@@ -116,7 +116,7 @@ export function Toolbar() {
             inputRef.current?.blur()
           }
         }}
-        placeholder="Search Gargle or dream up a URL"
+        placeholder="Search Google or dream up a URL"
         spellCheck={false}
         className="mx-2 h-[30px] min-w-0 flex-1 rounded-full border border-zinc-700 bg-zinc-900 px-4 text-[13px] text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-400"
       />

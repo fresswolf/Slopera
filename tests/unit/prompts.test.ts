@@ -87,22 +87,22 @@ describe('buildUserPrompt', () => {
     expect(prompt).not.toContain('clicking a link')
   })
 
-  it('switches into search-engine mode on gargle.com', () => {
+  it('switches into search-engine mode on google.com', () => {
     const prompt = buildUserPrompt({
       ...base,
-      url: 'slopera://gargle.com/search?q=best+pizza',
-      host: 'gargle.com',
+      url: 'slopera://google.com/search?q=best+pizza',
+      host: 'google.com',
       path: '/search?q=best+pizza',
     })
     expect(prompt).toContain('search engine')
     expect(prompt).toContain('best pizza')
   })
 
-  it('renders the gargle homepage without a query', () => {
+  it('renders the google homepage without a query', () => {
     const prompt = buildUserPrompt({
       ...base,
-      url: 'slopera://gargle.com/',
-      host: 'gargle.com',
+      url: 'slopera://google.com/',
+      host: 'google.com',
       path: '/',
     })
     expect(prompt).toContain('homepage')

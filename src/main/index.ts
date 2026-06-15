@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DEFAULT_BOOKMARKS, HOME_URL, IMG_SCHEME, PAGE_SCHEME, TAB_PARTITION } from '@shared/constants'
 import { AnthropicPageGenerator } from './generation/anthropic'
+import { OpenRouterPageGenerator } from './generation/openrouter'
 import { FixturePageGenerator } from './generation/fixture'
 import type { PageGenerator } from './generation/types'
 import { registerIpc } from './ipc'
@@ -50,14 +51,27 @@ app.whenReady().then(() => {
   })
   ses.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
 
+  const anthropicGen = new AnthropicPageGenerator(() => ({
+    apiKey: settings.anthropicKey,
+    model: settings.model,
+    customLenses: settings.customLenses,
+  }))
+  const openRouterGen = new OpenRouterPageGenerator(() => ({
+    apiKey: settings.openRouterKey,
+    model: settings.model,
+    customLenses: settings.customLenses,
+  }))
+  // Provider is resolved per request so a Settings change takes effect immediately.
   const generator: PageGenerator =
     process.env.SLOPERA_FAKE_GEN === '1'
       ? new FixturePageGenerator()
-      : new AnthropicPageGenerator(() => ({
-          apiKey: settings.anthropicKey,
-          model: settings.model,
-          customLenses: settings.customLenses,
-        }))
+      : {
+          streamPage: (req, signal) =>
+            (settings.textProvider === 'openrouter' ? openRouterGen : anthropicGen).streamPage(
+              req,
+              signal,
+            ),
+        }
 
   const pageCtl = registerPageProtocol(ses, { settings, pages, bibles, bookmarks, generator })
   registerImageProtocol(ses, settings, imagesDir)
