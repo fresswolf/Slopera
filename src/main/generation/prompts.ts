@@ -1,8 +1,8 @@
-import { IMG_SCHEME, SEARCH_DOMAIN } from '@shared/constants'
+import { DL_SCHEME, IMG_SCHEME, SEARCH_DOMAIN } from '@shared/constants'
 import type { LinkContext } from '@shared/extract'
 import { resolveLens } from '@shared/lenses'
 import type { Lens } from '@shared/lenses'
-import type { PageRequest } from './types'
+import type { FileRequest, PageRequest } from './types'
 
 export function buildSystemPrompt(lensId: string, customLenses: Lens[] = []): string {
   const lens = resolveLens(lensId, customLenses)
@@ -29,6 +29,14 @@ export function buildSystemPrompt(lensId: string, customLenses: Lens[] = []): st
     '  painting"). WIDTH/HEIGHT are the intended display size in pixels.',
     '- Use images where the real page would have them (0-6 per page) and always',
     '  give the img element explicit dimensions so the layout does not jump.',
+    '',
+    'DOWNLOADS',
+    `- To offer a downloadable file, link to ${DL_SCHEME}://download/FILENAME?prompt=DESC`,
+    '  where FILENAME has a real text extension (.csv .json .ics .vcf .txt .md .svg',
+    '  .html .xml .yaml .srt .log) and DESC is a URL-encoded summary of what the',
+    '  file should contain. Use this only where a real page genuinely would (e.g.',
+    '  "Export CSV", "Add to calendar", "Download vCard"). Never link binary',
+    '  formats (pdf, xlsx, docx, zip) — they cannot be dreamed.',
     '',
     'LINKS — every link is a door deeper into the dream',
     '- Every <a> href must be a plausible absolute URL (https://other-site.com/path)',
@@ -122,6 +130,36 @@ export function buildBiblePrompt(domain: string, html: string): string {
     'section names) worth keeping consistent.',
     '',
     html.slice(0, 6000),
+  ].join('\n')
+}
+
+export function buildFileSystemPrompt(
+  filename: string,
+  lensId: string,
+  customLenses: Lens[] = [],
+): string {
+  const lens = resolveLens(lensId, customLenses)
+  return [
+    'You are the file generator of Slopera, a browser that dreams the web. The',
+    `user is downloading a file named "${filename}". Produce its complete raw`,
+    'contents — exactly the bytes that belong inside that file, and nothing else.',
+    '',
+    'OUTPUT RULES',
+    '- Output ONLY the file contents. No commentary, no explanation, no markdown',
+    '  code fences, no backticks. Start immediately with the first byte of the file.',
+    '- Match the format the extension implies exactly: valid CSV, JSON, ICS,',
+    '  vCard, SVG, HTML, etc. The file must open cleanly in its native app.',
+    '- Invent realistic, self-consistent data. Never reproduce real copyrighted',
+    '  text from memory.',
+    '',
+    `LENS — the register of this dream: ${lens.instructions}`,
+  ].join('\n')
+}
+
+export function buildFileUserPrompt(req: FileRequest): string {
+  return [
+    `Filename: ${req.filename}`,
+    `What this file should contain: ${req.prompt || 'plausible, realistic contents that match the filename'}`,
   ].join('\n')
 }
 

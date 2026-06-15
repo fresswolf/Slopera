@@ -194,6 +194,10 @@ export class TabManager {
       // No referrer reaches a custom-scheme handler, so record the source page
       // here for the page protocol to honor the clicked link's intent.
       const parent = wc.getURL()
+      // Downloads: let Chromium fetch the slopera-dl:// URL untouched. Its
+      // attachment response turns the navigation into a download, so the current
+      // page is never replaced.
+      if (url.startsWith('slopera-dl://')) return
       if (url.startsWith('slopera://')) {
         this.deps.recordParent(url, parent)
         return
@@ -207,6 +211,12 @@ export class TabManager {
     })
 
     wc.setWindowOpenHandler(({ url }) => {
+      // A download link with target=_blank: trigger the download on the current
+      // contents instead of spawning an empty tab.
+      if (url.startsWith('slopera-dl://')) {
+        wc.downloadURL(url)
+        return { action: 'deny' }
+      }
       const target = url.startsWith('slopera://') ? url : httpToSlopera(url)
       if (target) {
         this.deps.recordParent(target, wc.getURL())

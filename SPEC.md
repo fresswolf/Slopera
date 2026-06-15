@@ -67,6 +67,22 @@ built like a product.
   Shimmer/alt-box placeholder while pending. The active image model is part of
   the image cache key, so switching engines re-dreams rather than serving a
   stale image.
+- **Downloads.** The LLM links to
+  `slopera-dl://download/<filename>?prompt=<description>` where a real page would
+  offer a file (e.g. "Export CSV", "Add to calendar", "Download vCard"). A
+  protocol handler dreams the file's raw contents (via a file-specific
+  `streamFile` prompt — no HTML, no fences) and answers with
+  `content-disposition: attachment`, so Chromium turns the click into a download
+  and the OS save dialog takes over. **Text-native formats only** (`txt, md, csv,
+  tsv, json, xml, html, svg, ics, vcf, yaml, yml, log, srt`) so every file is
+  real and openable; binary/Office/zip and unknown extensions are rejected, and
+  images are out of scope for v1 (a planned fast-follow reusing the scheme). The
+  filename is hard-sanitized to a flat basename (no traversal, no hidden files).
+  Content streams straight into the download; a *total* failure (bad key, first
+  token throws) becomes a native OS notification instead of an error page, and a
+  mid-stream failure lands as an interrupted download. Downloads are **not
+  cached** — re-clicking re-dreams; they don't carry the permanence semantics of
+  pages. A `Semaphore(2)` caps concurrent generations.
 - **Site coherence.** Per-domain "site bible" (style, tone, nav structure,
   recurring fake entities) created on first visit, stored, and injected into
   every subsequent prompt for that domain.
@@ -176,8 +192,8 @@ switching engines re-dreams.
 Generated pages execute LLM-written JS, so tab views are hostile-by-default:
 `sandbox: true`, `contextIsolation`, no Node, no preload IPC surface, a
 dedicated session whose `webRequest` blocks everything except `slopera://`,
-`slopera-img://`, and `data:`, plus an injected CSP. API keys live in
-`safeStorage`, never in the renderer.
+`slopera-img://`, `slopera-dl://` (downloads), and `data:`, plus an injected
+CSP. API keys live in `safeStorage`, never in the renderer.
 
 ### Data layout
 `~/Library/Application Support/slopera/`: `history.sqlite` (history,

@@ -16,6 +16,18 @@ export interface PageRequest {
   link: LinkContext | null
 }
 
+export interface FileRequest {
+  /** slopera-dl:// URL of the file being dreamed. */
+  url: string
+  /** Sanitized filename, including extension — drives format and tone. */
+  filename: string
+  /** What the file should contain, from the link's ?prompt=. */
+  prompt: string
+  lens: string
+}
+
 export interface PageGenerator {
   streamPage(req: PageRequest, signal: AbortSignal): AsyncGenerator<string>
+  /** Dream the raw contents of a downloadable file (no HTML, no fences). */
+  streamFile(req: FileRequest, signal: AbortSignal): AsyncGenerator<string>
 }

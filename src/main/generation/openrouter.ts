@@ -1,8 +1,14 @@
 import OpenAI from 'openai'
 import { OPENROUTER_BASE_URL, PAGE_MAX_TOKENS } from '@shared/constants'
 import type { Lens } from '@shared/lenses'
-import { buildBiblePrompt, buildSystemPrompt, buildUserPrompt } from './prompts'
-import type { PageGenerator, PageRequest } from './types'
+import {
+  buildBiblePrompt,
+  buildFileSystemPrompt,
+  buildFileUserPrompt,
+  buildSystemPrompt,
+  buildUserPrompt,
+} from './prompts'
+import type { FileRequest, PageGenerator, PageRequest } from './types'
 
 export interface OpenRouterConfig {
   apiKey: string | null
@@ -34,6 +40,28 @@ export class OpenRouterPageGenerator implements PageGenerator {
         messages: [
           { role: 'system', content: buildSystemPrompt(req.lens, customLenses) },
           { role: 'user', content: buildUserPrompt(req) },
+        ],
+      },
+      { signal },
+    )
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content
+      if (delta) yield delta
+    }
+  }
+
+  async *streamFile(req: FileRequest, signal: AbortSignal): AsyncGenerator<string> {
+    const { apiKey, model, customLenses } = this.getConfig()
+    if (!apiKey) throw new Error('No OpenRouter API key configured')
+    const client = createClient(apiKey)
+    const stream = await client.chat.completions.create(
+      {
+        model,
+        max_tokens: PAGE_MAX_TOKENS,
+        stream: true,
+        messages: [
+          { role: 'system', content: buildFileSystemPrompt(req.filename, req.lens, customLenses) },
+          { role: 'user', content: buildFileUserPrompt(req) },
         ],
       },
       { signal },

@@ -1,5 +1,6 @@
 export const PAGE_SCHEME = 'slopera'
 export const IMG_SCHEME = 'slopera-img'
+export const DL_SCHEME = 'slopera-dl'
 
 export const HOME_URL = 'slopera://home/'
 export const SEARCH_DOMAIN = 'google.com'
@@ -87,6 +88,7 @@ export const DEFAULT_IMAGE_MODEL = 'flux-schnell'
 
 export const PAGE_MAX_TOKENS = 8192
 export const IMAGE_CONCURRENCY = 3
+export const DOWNLOAD_CONCURRENCY = 2
 
 export const DEFAULT_BOOKMARKS: ReadonlyArray<{ url: string; title: string }> = [
   { url: 'slopera://google.com/', title: 'Google' },

@@ -1,13 +1,21 @@
-import { app, BrowserWindow, protocol, session } from 'electron'
+import { app, BrowserWindow, Notification, protocol, session } from 'electron'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { DEFAULT_BOOKMARKS, HOME_URL, IMG_SCHEME, PAGE_SCHEME, TAB_PARTITION } from '@shared/constants'
+import {
+  DEFAULT_BOOKMARKS,
+  DL_SCHEME,
+  HOME_URL,
+  IMG_SCHEME,
+  PAGE_SCHEME,
+  TAB_PARTITION,
+} from '@shared/constants'
 import { AnthropicPageGenerator } from './generation/anthropic'
 import { OpenRouterPageGenerator } from './generation/openrouter'
 import { FixturePageGenerator } from './generation/fixture'
 import type { PageGenerator } from './generation/types'
 import { registerIpc } from './ipc'
 import { buildMenu } from './menu'
+import { registerDownloadProtocol } from './protocols/download'
 import { registerImageProtocol } from './protocols/image'
 import { registerPageProtocol } from './protocols/page'
 import { SettingsStore } from './settings'
@@ -21,6 +29,7 @@ import { TabManager } from './tabs'
 protocol.registerSchemesAsPrivileged([
   { scheme: PAGE_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
   { scheme: IMG_SCHEME, privileges: { standard: true, secure: true, stream: true } },
+  { scheme: DL_SCHEME, privileges: { standard: true, secure: true, stream: true } },
 ])
 
 if (process.env.SLOPERA_USER_DATA) {
@@ -46,7 +55,7 @@ app.whenReady().then(() => {
   // session with no Node, no preload, and no real network.
   const ses = session.fromPartition(TAB_PARTITION)
   ses.webRequest.onBeforeRequest((details, callback) => {
-    const allowed = /^(slopera|slopera-img|data|blob|about|devtools|chrome-devtools):/.test(details.url)
+    const allowed = /^(slopera|slopera-img|slopera-dl|data|blob|about|devtools|chrome-devtools):/.test(details.url)
     callback({ cancel: !allowed })
   })
   ses.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
@@ -62,19 +71,26 @@ app.whenReady().then(() => {
     customLenses: settings.customLenses,
   }))
   // Provider is resolved per request so a Settings change takes effect immediately.
+  const pickGen = () => (settings.textProvider === 'openrouter' ? openRouterGen : anthropicGen)
   const generator: PageGenerator =
     process.env.SLOPERA_FAKE_GEN === '1'
       ? new FixturePageGenerator()
       : {
-          streamPage: (req, signal) =>
-            (settings.textProvider === 'openrouter' ? openRouterGen : anthropicGen).streamPage(
-              req,
-              signal,
-            ),
+          streamPage: (req, signal) => pickGen().streamPage(req, signal),
+          streamFile: (req, signal) => pickGen().streamFile(req, signal),
         }
 
   const pageCtl = registerPageProtocol(ses, { settings, pages, bibles, bookmarks, generator })
   registerImageProtocol(ses, settings, imagesDir)
+  registerDownloadProtocol(ses, {
+    settings,
+    generator,
+    onTotalFailure: (filename) => {
+      if (Notification.isSupported()) {
+        new Notification({ title: 'Download failed', body: `Couldn’t generate ${filename}` }).show()
+      }
+    },
+  })
 
   const win = new BrowserWindow({
     width: 1280,
