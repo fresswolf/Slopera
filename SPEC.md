@@ -59,7 +59,18 @@ built like a product.
 - **Streaming HTML.** LLM output is streamed into the tab as it arrives.
 - **Generated JavaScript works.** Pages may include interactive inline JS
   (e.g. `calculator.com` is a working calculator). Prompts instruct the model
-  to emit `<style>` early and `<script>` at the end of the document.
+  to emit `<style>` early and `<script>` at the end of the document. An
+  **Interactivity** setting (`settings.jsLevel`: `static` / `light` [default] /
+  `rich`) swaps the JS clause of the system prompt — `static` forbids `<script>`
+  entirely, `rich` pushes for ambitious mini-apps. It lives in the system prompt,
+  not the cache key, so it applies to new dreams and reloads only; already-cached
+  pages keep the level they were dreamed with.
+- **Output-token ceiling.** `PAGE_MAX_TOKENS` (32K) caps a single page/file
+  generation. It's a safety bound, not a target — both page paths stream (so no
+  HTTP timeout), and the model stops on its own at its natural end well before
+  this; the high cap just keeps complex pages (inline-JS games, long articles)
+  from truncating mid-render. Anthropic requires `max_tokens`, so it can't be
+  omitted; 32K fits every model's streamed-output ceiling.
 - **Images.** The LLM writes
   `<img src="slopera-img://gen?prompt=...&w=...&h=...">`; a protocol handler
   generates each image async via the configured fal.run image model

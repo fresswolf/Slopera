@@ -3,11 +3,12 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import {
   DEFAULT_IMAGE_MODEL,
+  DEFAULT_JS_LEVEL,
   DEFAULT_MODEL,
   DEFAULT_OPENROUTER_IMAGE_MODEL,
   DEFAULT_OPENROUTER_MODEL,
 } from '@shared/constants'
-import type { ImageProvider, TextProvider } from '@shared/constants'
+import type { ImageProvider, JsLevel, TextProvider } from '@shared/constants'
 import { DEFAULT_LENS, LENSES, slugifyLensId } from '@shared/lenses'
 import type { Lens } from '@shared/lenses'
 import type { SettingsUpdate, SettingsView } from '@shared/types'
@@ -18,6 +19,7 @@ interface Persisted {
   imageProvider: ImageProvider
   imageModel: string
   lens: string
+  jsLevel: JsLevel
   customLenses: Lens[]
   /** API keys, stored as `enc:<base64>` (safeStorage) or `plain:<key>` as fallback. */
   anthropicKey?: string
@@ -37,6 +39,7 @@ export class SettingsStore {
       imageProvider: 'fal',
       imageModel: DEFAULT_IMAGE_MODEL,
       lens: DEFAULT_LENS,
+      jsLevel: DEFAULT_JS_LEVEL,
       customLenses: [],
     }
     try {
@@ -65,6 +68,10 @@ export class SettingsStore {
 
   get lens(): string {
     return this.data.lens
+  }
+
+  get jsLevel(): JsLevel {
+    return this.data.jsLevel
   }
 
   get anthropicKey(): string | null {
@@ -125,6 +132,7 @@ export class SettingsStore {
       imageProvider: this.data.imageProvider,
       imageModel: this.data.imageModel,
       lens: this.data.lens,
+      jsLevel: this.data.jsLevel,
       customLenses: this.data.customLenses,
       hasAnthropicKey: this.anthropicKey !== null,
       hasOpenRouterKey: this.openRouterKey !== null,
@@ -163,6 +171,9 @@ export class SettingsStore {
       [...LENSES, ...this.data.customLenses].some((l) => l.id === u.lens)
     ) {
       this.data.lens = u.lens
+    }
+    if (u.jsLevel === 'static' || u.jsLevel === 'light' || u.jsLevel === 'rich') {
+      this.data.jsLevel = u.jsLevel
     }
     if (u.anthropicKey !== undefined) {
       this.data.anthropicKey = u.anthropicKey === '' ? undefined : this.encrypt(u.anthropicKey)

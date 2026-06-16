@@ -22,6 +22,17 @@ export const BIBLE_MODEL = 'claude-haiku-4-5'
 export type TextProvider = 'anthropic' | 'openrouter'
 export type ImageProvider = 'fal' | 'openrouter'
 
+/** How much JavaScript the page generator is told to put in dreamed pages. */
+export type JsLevel = 'static' | 'light' | 'rich'
+
+export const DEFAULT_JS_LEVEL: JsLevel = 'light'
+
+export const JS_LEVELS = [
+  { id: 'static', label: 'Static — no JavaScript' },
+  { id: 'light', label: 'Light — modest interactivity' },
+  { id: 'rich', label: 'Rich — ambitious mini-apps' },
+] as const satisfies readonly { id: JsLevel; label: string }[]
+
 /** OpenRouter speaks the OpenAI chat-completions API for every model it proxies. */
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 
@@ -86,7 +97,16 @@ export const IMAGE_MODELS = [
 
 export const DEFAULT_IMAGE_MODEL = 'flux-schnell'
 
-export const PAGE_MAX_TOKENS = 8192
+/**
+ * Output-token ceiling for a single page/file generation. This is a safety cap,
+ * not a target: both page paths stream, so HTTP timeouts aren't a concern, and
+ * the model stops on its own at its natural end-of-turn well before this. Set
+ * high so complex pages (inline-JS games, long articles) finish instead of
+ * truncating mid-render; it only bounds runaway output. 32K fits every model's
+ * streamed output ceiling (Haiku/Sonnet cap at 64K, Opus at 128K).
+ */
+export const PAGE_MAX_TOKENS = 64000
+
 export const IMAGE_CONCURRENCY = 3
 export const DOWNLOAD_CONCURRENCY = 2
 

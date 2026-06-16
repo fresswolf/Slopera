@@ -1,10 +1,40 @@
-import { DL_SCHEME, IMG_SCHEME, SEARCH_DOMAIN } from '@shared/constants'
+import { DEFAULT_JS_LEVEL, DL_SCHEME, IMG_SCHEME, SEARCH_DOMAIN } from '@shared/constants'
+import type { JsLevel } from '@shared/constants'
 import type { LinkContext } from '@shared/extract'
 import { resolveLens } from '@shared/lenses'
 import type { Lens } from '@shared/lenses'
 import type { FileRequest, PageRequest } from './types'
 
-export function buildSystemPrompt(lensId: string, customLenses: Lens[] = []): string {
+/** The JavaScript clause of the OUTPUT RULES, varied by the user's chosen level. */
+function interactivityRule(level: JsLevel): string[] {
+  if (level === 'static') {
+    return [
+      '- Do not include any JavaScript. No <script> elements at all. The page is',
+      '  fully static HTML and CSS; links and GET forms are the only interactivity.',
+    ]
+  }
+  if (level === 'rich') {
+    return [
+      '- Lean into interactivity: build ambitious vanilla-JavaScript mini-apps, games,',
+      '  simulations and stateful widgets wherever the page invites them. Put all JS in',
+      '  ONE <script> element at the very END of <body>, so the DOM it references already',
+      '  exists. No external scripts, no fetch or XHR (the network is disabled), no',
+      '  frameworks.',
+    ]
+  }
+  return [
+    '- Interactivity (calculators, toggles, games, form behavior) is welcome:',
+    '  vanilla JavaScript in ONE <script> element at the very END of <body>, so the',
+    '  DOM it references already exists. No external scripts, no fetch or XHR',
+    '  (the network is disabled), no frameworks.',
+  ]
+}
+
+export function buildSystemPrompt(
+  lensId: string,
+  customLenses: Lens[] = [],
+  jsLevel: JsLevel = DEFAULT_JS_LEVEL,
+): string {
   const lens = resolveLens(lensId, customLenses)
   return [
     'You are the rendering engine of Slopera, a browser that dreams the web.',
@@ -17,10 +47,7 @@ export function buildSystemPrompt(lensId: string, customLenses: Lens[] = []): st
     '- The page must be fully self-contained. All CSS goes in ONE <style> element',
     '  inside <head>, before any body content, so the page styles itself while it',
     '  streams in.',
-    '- Interactivity (calculators, toggles, games, form behavior) is welcome:',
-    '  vanilla JavaScript in ONE <script> element at the very END of <body>, so the',
-    '  DOM it references already exists. No external scripts, no fetch or XHR',
-    '  (the network is disabled), no frameworks.',
+    ...interactivityRule(jsLevel),
     '',
     'IMAGES',
     `- Use <img src="${IMG_SCHEME}://gen/?prompt=DESCRIPTION&w=WIDTH&h=HEIGHT">.`,

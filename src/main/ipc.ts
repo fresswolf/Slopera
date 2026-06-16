@@ -20,6 +20,7 @@ const settingsUpdateSchema = z
     imageProvider: z.enum(['fal', 'openrouter']).optional(),
     imageModel: z.string().max(256).optional(),
     lens: z.string().max(64).optional(),
+    jsLevel: z.enum(['static', 'light', 'rich']).optional(),
     anthropicKey: z.string().max(512).optional(),
     openRouterKey: z.string().max(512).optional(),
     falKey: z.string().max(512).optional(),

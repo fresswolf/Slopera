@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { OPENROUTER_BASE_URL, PAGE_MAX_TOKENS } from '@shared/constants'
+import type { JsLevel } from '@shared/constants'
 import type { Lens } from '@shared/lenses'
 import {
   buildBiblePrompt,
@@ -14,6 +15,7 @@ export interface OpenRouterConfig {
   apiKey: string | null
   model: string
   customLenses: Lens[]
+  jsLevel: JsLevel
 }
 
 /** OpenRouter is OpenAI-compatible; identify Slopera so it shows up in their dashboards. */
@@ -29,7 +31,7 @@ export class OpenRouterPageGenerator implements PageGenerator {
   constructor(private readonly getConfig: () => OpenRouterConfig) {}
 
   async *streamPage(req: PageRequest, signal: AbortSignal): AsyncGenerator<string> {
-    const { apiKey, model, customLenses } = this.getConfig()
+    const { apiKey, model, customLenses, jsLevel } = this.getConfig()
     if (!apiKey) throw new Error('No OpenRouter API key configured')
     const client = createClient(apiKey)
     const stream = await client.chat.completions.create(
@@ -38,7 +40,7 @@ export class OpenRouterPageGenerator implements PageGenerator {
         max_tokens: PAGE_MAX_TOKENS,
         stream: true,
         messages: [
-          { role: 'system', content: buildSystemPrompt(req.lens, customLenses) },
+          { role: 'system', content: buildSystemPrompt(req.lens, customLenses, jsLevel) },
           { role: 'user', content: buildUserPrompt(req) },
         ],
       },

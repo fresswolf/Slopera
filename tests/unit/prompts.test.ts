@@ -29,6 +29,22 @@ describe('buildSystemPrompt', () => {
     const custom = [{ id: 'noir', label: 'Noir', instructions: 'Everything is rain-slick and lit by one neon sign.' }]
     expect(buildSystemPrompt('noir', custom)).toContain('rain-slick')
   })
+
+  it('defaults to the light interactivity clause', () => {
+    const prompt = buildSystemPrompt('straight')
+    expect(prompt).toContain('Interactivity (calculators, toggles, games')
+  })
+
+  it('forbids all JavaScript at the static level', () => {
+    const prompt = buildSystemPrompt('straight', [], 'static')
+    expect(prompt).toContain('Do not include any JavaScript')
+    expect(prompt).not.toContain('Interactivity (calculators')
+  })
+
+  it('encourages ambitious mini-apps at the rich level', () => {
+    const prompt = buildSystemPrompt('straight', [], 'rich')
+    expect(prompt).toContain('ambitious vanilla-JavaScript mini-apps')
+  })
 })
 
 describe('buildUserPrompt', () => {
