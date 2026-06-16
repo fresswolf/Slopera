@@ -17,7 +17,9 @@
     "icons": "bash scripts/gen-icons.sh",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "package:mac": "npm run build && electron-builder --mac"
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:win": "npm run build && electron-builder --win --x64",
+    "package:win:zip": "npm run build && electron-builder --win zip --x64"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

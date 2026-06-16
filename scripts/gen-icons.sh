@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
-# Regenerate build/icon.png and build/icon.icns from logo.png.
-# The logo is placed on a transparent 1024x1024 canvas at Apple's standard
-# content size (~82%) so it matches the visual weight of other macOS dock icons
-# instead of filling the whole square edge-to-edge.
+# Regenerate the app icons from logo.png.
+#   build/icon.png / build/icon.icns  — macOS, padded to Apple's standard ~82%
+#                                        content size so the dock icon matches
+#                                        the visual weight of other apps.
+#   build/icon-desktop.png            — Windows/Linux, nearly full-bleed; those
+#                                        platforms don't apply the macOS mask, so
+#                                        the shrunken art looks lost on them.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 src="logo.png"
 [ -f "$src" ] || { echo "logo.png not found" >&2; exit 1; }
 
-# Fraction of the 1024 canvas the artwork should span. Override: ICON_SCALE=0.9 npm run icons
+# Fraction of the 1024 canvas the artwork spans, per platform family.
+# Override: ICON_SCALE=0.9 ICON_SCALE_DESKTOP=1.0 npm run icons
 scale="${ICON_SCALE:-0.82}"
+scale_desktop="${ICON_SCALE_DESKTOP:-0.96}"
 
-python3 - "$src" build/icon.png "$scale" <<'PY'
+render() {
+  python3 - "$src" "$1" "$2" <<'PY'
 import sys
 from PIL import Image
 
@@ -29,6 +35,10 @@ img.paste(logo, ((canvas - logo.width) // 2, (canvas - logo.height) // 2), logo)
 img.save(out)
 print(f"padded {logo.width}x{logo.height} logo onto {canvas}x{canvas} canvas (scale {scale})")
 PY
+}
+
+render build/icon.png "$scale"
+render build/icon-desktop.png "$scale_desktop"
 
 iconset="$(mktemp -d)/icon.iconset"
 mkdir -p "$iconset"
@@ -40,4 +50,4 @@ done
 iconutil -c icns "$iconset" -o build/icon.icns
 
 echo "icons regenerated:"
-file build/icon.png build/icon.icns
+file build/icon.png build/icon.icns build/icon-desktop.png

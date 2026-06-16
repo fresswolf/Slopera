@@ -12,8 +12,11 @@ mac:
   identity: null
 win:
   target: nsis
+  # full-bleed art — Windows doesn't apply the macOS rounded mask/padding
+  icon: build/icon-desktop.png
 linux:
   target: AppImage
   category: Network
+  icon: build/icon-desktop.png
 # no native modules — sqlite comes from Electron's bundled node:sqlite
 npmRebuild: false
