@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Notification, protocol, session } from 'electron'
+import { app, BrowserWindow, Notification, nativeImage, protocol, session } from 'electron'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -32,11 +32,22 @@ protocol.registerSchemesAsPrivileged([
   { scheme: DL_SCHEME, privileges: { standard: true, secure: true, stream: true } },
 ])
 
+// In dev, electron-vite runs from out/, so Electron can't resolve our package.json
+// and app.name would fall back to "Electron". Force it so the menu bar reads "Slopera".
+app.setName('Slopera')
+
 if (process.env.SLOPERA_USER_DATA) {
   app.setPath('userData', process.env.SLOPERA_USER_DATA)
 }
 
 app.whenReady().then(() => {
+  // Packaged builds use the bundle icon automatically; in dev the dock and the
+  // "About" panel would otherwise show the default Electron icon.
+  if (!app.isPackaged && process.platform === 'darwin') {
+    const icon = nativeImage.createFromPath(join(app.getAppPath(), 'build', 'icon.png'))
+    if (!icon.isEmpty()) app.dock?.setIcon(icon)
+  }
+
   const userData = app.getPath('userData')
   const pagesDir = join(userData, 'pages')
   const imagesDir = join(userData, 'images')
