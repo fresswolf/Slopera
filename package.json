@@ -1,7 +1,7 @@
 {
   "name": "slopera",
   "productName": "Slopera",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "The browser for the slop era.",
   "author": "Andreas Siegrist",
   "license": "MIT",
@@ -14,6 +14,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint .",
+    "icons": "bash scripts/gen-icons.sh",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "package:mac": "npm run build && electron-builder --mac"
