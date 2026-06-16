@@ -41,6 +41,15 @@ export const LENSES: Lens[] = [
       'Request images as low-fi pixel art or scanned-photo style.',
     ].join(' '),
   },
+  {
+    id: 'childlike',
+    label: 'Childlike',
+    instructions: [
+      'Render every page as if drawn by a 6-year-old with crayons:',
+      'wobbly hand-drawn shapes, misspelled labels, stick-figure images,',
+      'primary colors, and stickers in the margins.',
+    ].join(' '),
+  },
 ]
 
 export const DEFAULT_LENS = 'straight'

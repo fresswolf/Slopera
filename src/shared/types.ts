@@ -30,7 +30,7 @@ export interface Bookmark {
 }
 
 import type { Lens } from './lenses'
-import type { ImageProvider, JsLevel, TextProvider } from './constants'
+import type { ImageProvider, TextProvider } from './constants'
 
 export interface SettingsView {
   textProvider: TextProvider
@@ -38,7 +38,6 @@ export interface SettingsView {
   imageProvider: ImageProvider
   imageModel: string
   lens: string
-  jsLevel: JsLevel
   customLenses: Lens[]
   hasAnthropicKey: boolean
   hasOpenRouterKey: boolean
@@ -52,7 +51,6 @@ export interface SettingsUpdate {
   imageProvider?: ImageProvider
   imageModel?: string
   lens?: string
-  jsLevel?: JsLevel
   anthropicKey?: string
   openRouterKey?: string
   falKey?: string

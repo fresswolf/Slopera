@@ -1,40 +1,30 @@
-import { DEFAULT_JS_LEVEL, DL_SCHEME, IMG_SCHEME, SEARCH_DOMAIN } from '@shared/constants'
-import type { JsLevel } from '@shared/constants'
+import { DL_SCHEME, IMG_SCHEME, SEARCH_DOMAIN } from '@shared/constants'
 import type { LinkContext } from '@shared/extract'
 import { resolveLens } from '@shared/lenses'
 import type { Lens } from '@shared/lenses'
 import type { FileRequest, PageRequest } from './types'
 
-/** The JavaScript clause of the OUTPUT RULES, varied by the user's chosen level. */
-function interactivityRule(level: JsLevel): string[] {
-  if (level === 'static') {
-    return [
-      '- Do not include any JavaScript. No <script> elements at all. The page is',
-      '  fully static HTML and CSS; links and GET forms are the only interactivity.',
-    ]
-  }
-  if (level === 'rich') {
-    return [
-      '- Lean into interactivity: build ambitious vanilla-JavaScript mini-apps, games,',
-      '  simulations and stateful widgets wherever the page invites them. Put all JS in',
-      '  ONE <script> element at the very END of <body>, so the DOM it references already',
-      '  exists. No external scripts, no fetch or XHR (the network is disabled), no',
-      '  frameworks.',
-    ]
-  }
+/**
+ * The JavaScript clause of the OUTPUT RULES. The model decides how much JS the
+ * page needs: most pages are content and want little or none, but genuinely
+ * interactive pages must be built for real, not faked.
+ */
+function interactivityRule(): string[] {
   return [
-    '- Interactivity (calculators, toggles, games, form behavior) is welcome:',
-    '  vanilla JavaScript in ONE <script> element at the very END of <body>, so the',
-    '  DOM it references already exists. No external scripts, no fetch or XHR',
-    '  (the network is disabled), no frameworks.',
+    '- JavaScript: match the real page. Most pages are content — an article, a',
+    '  product listing, a news front page — and need little or no JavaScript; their',
+    '  links and GET forms carry them. Do not bolt gratuitous widgets onto pages',
+    '  that would not have them. But when the page is fundamentally a thing you',
+    '  operate — a calculator, a playable game (e.g. Flappy Bird), an interactive',
+    '  demo, a drawing tool, a code/text editor, a data explorer — build it for',
+    '  real and ambitiously in vanilla JavaScript; write as much JS as it genuinely',
+    '  needs and never fake it with a static mockup. Put all JS in ONE <script>',
+    '  element at the very END of <body>, so the DOM it references already exists.',
+    '  No external scripts, no fetch or XHR (the network is disabled), no frameworks.',
   ]
 }
 
-export function buildSystemPrompt(
-  lensId: string,
-  customLenses: Lens[] = [],
-  jsLevel: JsLevel = DEFAULT_JS_LEVEL,
-): string {
+export function buildSystemPrompt(lensId: string, customLenses: Lens[] = []): string {
   const lens = resolveLens(lensId, customLenses)
   return [
     'You are the rendering engine of Slopera, a browser that dreams the web.',
@@ -47,7 +37,7 @@ export function buildSystemPrompt(
     '- The page must be fully self-contained. All CSS goes in ONE <style> element',
     '  inside <head>, before any body content, so the page styles itself while it',
     '  streams in.',
-    ...interactivityRule(jsLevel),
+    ...interactivityRule(),
     '',
     'IMAGES',
     `- Use <img src="${IMG_SCHEME}://gen/?prompt=DESCRIPTION&w=WIDTH&h=HEIGHT">.`,

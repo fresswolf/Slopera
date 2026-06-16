@@ -75,13 +75,11 @@ app.whenReady().then(() => {
     apiKey: settings.anthropicKey,
     model: settings.model,
     customLenses: settings.customLenses,
-    jsLevel: settings.jsLevel,
   }))
   const openRouterGen = new OpenRouterPageGenerator(() => ({
     apiKey: settings.openRouterKey,
     model: settings.model,
     customLenses: settings.customLenses,
-    jsLevel: settings.jsLevel,
   }))
   // Provider is resolved per request so a Settings change takes effect immediately.
   const pickGen = () => (settings.textProvider === 'openrouter' ? openRouterGen : anthropicGen)

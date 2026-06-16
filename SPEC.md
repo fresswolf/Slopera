@@ -53,18 +53,20 @@ built like a product.
   recommends fal.ai as the fastest/cheapest. A provider whose key isn't saved is
   disabled ("key req'd"); switching provider resets the model to that provider's
   default. At least an Anthropic **or** OpenRouter key is required to dream pages.
+  The active text provider self-corrects: adding/removing a key never strands it
+  on a provider with no key when the other one has a key (e.g. saving only an
+  OpenRouter key auto-switches Pages from the default Anthropic to OpenRouter).
   Plus default-lens picker and cache controls (size shown, clear button).
 
 ### Generation behavior
 - **Streaming HTML.** LLM output is streamed into the tab as it arrives.
 - **Generated JavaScript works.** Pages may include interactive inline JS
   (e.g. `calculator.com` is a working calculator). Prompts instruct the model
-  to emit `<style>` early and `<script>` at the end of the document. An
-  **Interactivity** setting (`settings.jsLevel`: `static` / `light` [default] /
-  `rich`) swaps the JS clause of the system prompt — `static` forbids `<script>`
-  entirely, `rich` pushes for ambitious mini-apps. It lives in the system prompt,
-  not the cache key, so it applies to new dreams and reloads only; already-cached
-  pages keep the level they were dreamed with.
+  to emit `<style>` early and `<script>` at the end of the document. There is no
+  interactivity knob: the system prompt tells the model to match the real page —
+  little or no JS for content pages, but to build genuinely interactive pages
+  (calculators, games like Flappy Bird, editors, demos) for real and ambitiously
+  rather than faking them with a static mockup. The model decides per page.
 - **Output-token ceiling.** `PAGE_MAX_TOKENS` (32K) caps a single page/file
   generation. It's a safety bound, not a target — both page paths stream (so no
   HTTP timeout), and the model stops on its own at its natural end well before

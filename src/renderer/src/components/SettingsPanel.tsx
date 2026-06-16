@@ -4,7 +4,6 @@ import {
   DEFAULT_OPENROUTER_IMAGE_MODEL,
   DEFAULT_OPENROUTER_MODEL,
   IMAGE_MODELS,
-  JS_LEVELS,
   MODELS,
   OPENROUTER_IMAGE_MODELS,
   OPENROUTER_PAGE_MODELS,
@@ -159,25 +158,6 @@ export function SettingsPanel() {
                   onCommit={(model) => void updateSettings({ model })}
                 />
               )}
-              <div>
-                <label className={labelCls}>Interactivity</label>
-                <select
-                  value={settings.jsLevel}
-                  onChange={(e) =>
-                    void updateSettings({ jsLevel: e.target.value as SettingsUpdate['jsLevel'] })
-                  }
-                  className={field}
-                >
-                  {JS_LEVELS.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-zinc-600">
-                  How much JavaScript dreamed pages may run.
-                </p>
-              </div>
             </section>
 
             <section className="mb-8 space-y-4">

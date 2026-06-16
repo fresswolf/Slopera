@@ -30,20 +30,11 @@ describe('buildSystemPrompt', () => {
     expect(buildSystemPrompt('noir', custom)).toContain('rain-slick')
   })
 
-  it('defaults to the light interactivity clause', () => {
+  it('lets the model decide on JavaScript, building real interactivity when warranted', () => {
     const prompt = buildSystemPrompt('straight')
-    expect(prompt).toContain('Interactivity (calculators, toggles, games')
-  })
-
-  it('forbids all JavaScript at the static level', () => {
-    const prompt = buildSystemPrompt('straight', [], 'static')
-    expect(prompt).toContain('Do not include any JavaScript')
-    expect(prompt).not.toContain('Interactivity (calculators')
-  })
-
-  it('encourages ambitious mini-apps at the rich level', () => {
-    const prompt = buildSystemPrompt('straight', [], 'rich')
-    expect(prompt).toContain('ambitious vanilla-JavaScript mini-apps')
+    expect(prompt).toContain('JavaScript: match the real page')
+    expect(prompt).toContain('a playable game')
+    expect(prompt).toContain('never fake it with a static mockup')
   })
 })
 

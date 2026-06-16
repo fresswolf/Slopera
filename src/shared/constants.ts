@@ -22,17 +22,6 @@ export const BIBLE_MODEL = 'claude-haiku-4-5'
 export type TextProvider = 'anthropic' | 'openrouter'
 export type ImageProvider = 'fal' | 'openrouter'
 
-/** How much JavaScript the page generator is told to put in dreamed pages. */
-export type JsLevel = 'static' | 'light' | 'rich'
-
-export const DEFAULT_JS_LEVEL: JsLevel = 'light'
-
-export const JS_LEVELS = [
-  { id: 'static', label: 'Static — no JavaScript' },
-  { id: 'light', label: 'Light — modest interactivity' },
-  { id: 'rich', label: 'Rich — ambitious mini-apps' },
-] as const satisfies readonly { id: JsLevel; label: string }[]
-
 /** OpenRouter speaks the OpenAI chat-completions API for every model it proxies. */
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 
@@ -40,6 +29,7 @@ export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 export const OPENROUTER_PAGE_MODELS = [
   { id: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5' },
   { id: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6' },
+  { id: 'anthropic/claude-opus-4.8', label: 'Claude Opus 4.8' },
   { id: 'anthropic/claude-opus-4.8-fast', label: 'Claude Opus 4.8 Fast' },
   { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   { id: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
@@ -64,7 +54,7 @@ export const OPENROUTER_IMAGE_MODELS = [
 ] as const satisfies readonly OpenRouterImageModel[]
 
 /** Suggested-but-editable model when the user first switches to OpenRouter. */
-export const DEFAULT_OPENROUTER_MODEL = 'openai/gpt-5.4-mini'
+export const DEFAULT_OPENROUTER_MODEL = 'anthropic/claude-haiku-4.5'
 /** Hardcoded cheap model for site-bible distillation on OpenRouter (overridable account permitting). */
 export const BIBLE_MODEL_OPENROUTER = 'google/gemini-2.5-flash'
 /** Suggested-but-editable image model when the user first switches images to OpenRouter. */
