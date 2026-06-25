@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Notification, nativeImage, protocol, session } from 'electron'
+import type { BrowserWindowConstructorOptions } from 'electron'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -103,6 +104,21 @@ app.whenReady().then(() => {
     },
   })
 
+  // Window chrome is platform-specific. macOS keeps the inset title bar with
+  // its traffic lights; Windows goes frameless with a native control overlay
+  // painted inside our 38px tab strip (see TabStrip) and an auto-hidden menu
+  // bar (revealed with Alt) so we collapse to a single Chrome-style top row.
+  const chrome: Partial<BrowserWindowConstructorOptions> =
+    process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset' }
+      : process.platform === 'win32'
+        ? {
+            titleBarStyle: 'hidden',
+            titleBarOverlay: { color: '#18181b', symbolColor: '#a1a1aa', height: 38 },
+            autoHideMenuBar: true,
+          }
+        : {}
+
   const win = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -110,8 +126,8 @@ app.whenReady().then(() => {
     minHeight: 520,
     show: false,
     backgroundColor: '#18181b',
-    titleBarStyle: 'hiddenInset',
     title: 'Slopera',
+    ...chrome,
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       sandbox: true,

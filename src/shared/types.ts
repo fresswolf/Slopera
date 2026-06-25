@@ -63,6 +63,7 @@ export interface CacheStats {
 }
 
 export interface SloperaApi {
+  platform: 'darwin' | 'win32' | 'linux' | string
   tabs: {
     create: (input?: string) => void
     close: (id: number) => void

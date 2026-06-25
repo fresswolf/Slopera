@@ -9,6 +9,7 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
 }
 
 const api: SloperaApi = {
+  platform: process.platform,
   tabs: {
     create: (input) => ipcRenderer.send('tabs:create', input),
     close: (id) => ipcRenderer.send('tabs:close', id),

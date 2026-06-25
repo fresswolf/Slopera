@@ -1,13 +1,21 @@
 import { Loader2, Plus, X } from 'lucide-react'
 import { useUI } from '../store'
 
+// Reserve space in the tab strip for native window controls: traffic lights on
+// the left (macOS), or the caption-control overlay on the right (Windows).
+const platform = window.slopera.platform
+const controlPadding =
+  platform === 'darwin' ? 'pl-[84px]' : platform === 'win32' ? 'pr-[140px]' : ''
+
 export function TabStrip() {
   const tabs = useUI((s) => s.tabs)
   const activeId = useUI((s) => s.activeId)
   const closeOverlay = useUI((s) => s.closeOverlay)
 
   return (
-    <div className="drag-region flex h-[38px] shrink-0 items-end gap-1 bg-zinc-900 px-2 pl-[84px]">
+    <div
+      className={`drag-region flex h-[38px] shrink-0 items-end gap-1 bg-zinc-900 px-2 ${controlPadding}`}
+    >
       {tabs.map((tab) => (
         <div
           key={tab.id}
