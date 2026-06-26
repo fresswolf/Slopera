@@ -19,7 +19,7 @@ npm run package:mac  # unsigned .dmg
 
 `SLOPERA_FAKE_GEN=1 npm run dev` runs against a canned offline generator (`src/main/generation/fixture.ts`) — no API keys, no cost. Use it for UI work; the e2e test uses it too. `SLOPERA_USER_DATA=<dir>` overrides the profile directory (used by e2e for a throwaway profile).
 
-CI is **GitLab** (`.gitlab-ci.yml`), not GitHub Actions: lint + typecheck + unit tests + build on every push; mac packaging is a manual job.
+CI is **GitHub Actions** (`.github/workflows/release.yml`): a cheap `check` gate (lint + typecheck + unit tests) runs on every push/PR, then per-platform jobs build the installers on native runners — `windows` (NSIS + zip, x64 + arm64), `macos` (dmg, x64 + arm64, unsigned), and `linux` (AppImage, x64). Pushing a `v*` tag collects all platforms' artifacts into a draft GitHub Release.
 
 ## Architecture
 
