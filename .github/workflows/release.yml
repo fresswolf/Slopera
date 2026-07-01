@@ -104,5 +104,5 @@ jobs:
           path: dist
       - uses: softprops/action-gh-release@v3
         with:
-          draft: true # review before publishing; flip to false to auto-publish
+          draft: false # auto-publish the Release on v* tag push
           files: dist/*
