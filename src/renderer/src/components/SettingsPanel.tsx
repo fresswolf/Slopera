@@ -69,16 +69,16 @@ export function SettingsPanel() {
 
   return (
     <div className="absolute inset-0 overflow-y-auto">
-      <button
-        onClick={done}
-        aria-label="Close settings"
-        className="fixed right-4 top-4 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-400 backdrop-blur hover:border-violet-400 hover:text-zinc-100"
-      >
-        <X size={18} />
-      </button>
       <div className="mx-auto max-w-xl px-8 py-8">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-zinc-100">Settings</h1>
+          <button
+            onClick={done}
+            aria-label="Close settings"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-400 hover:border-violet-400 hover:text-zinc-100"
+          >
+            <X size={24} />
+          </button>
         </div>
 
         <section className="mb-8 space-y-4">
