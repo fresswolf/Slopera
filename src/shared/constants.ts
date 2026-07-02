@@ -98,7 +98,7 @@ export const DEFAULT_IMAGE_MODEL = 'flux-schnell'
  * not a target: both page paths stream, so HTTP timeouts aren't a concern, and
  * the model stops on its own at its natural end-of-turn well before this. Set
  * high so complex pages (inline-JS games, long articles) finish instead of
- * truncating mid-render; it only bounds runaway output. 32K fits every model's
+ * truncating mid-render; it only bounds runaway output. 64K fits every model's
  * streamed output ceiling (Haiku/Sonnet cap at 64K, Opus at 128K).
  */
 export const PAGE_MAX_TOKENS = 64000
