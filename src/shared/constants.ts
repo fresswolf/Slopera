@@ -14,6 +14,7 @@ export const MODELS = [
   { id: 'claude-haiku-4-5', label: 'Haiku 4.5 — fast, maximum slop' },
   { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6 — balanced' },
   { id: 'claude-opus-4-8', label: 'Opus 4.8 — deluxe hallucinations' },
+  { id: 'claude-fable-5', label: 'Fable 5 — frontier fever dreams' },
 ] as const
 
 export const DEFAULT_MODEL = 'claude-haiku-4-5'
@@ -31,6 +32,8 @@ export const OPENROUTER_PAGE_MODELS = [
   { id: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6' },
   { id: 'anthropic/claude-opus-4.8', label: 'Claude Opus 4.8' },
   { id: 'anthropic/claude-opus-4.8-fast', label: 'Claude Opus 4.8 Fast' },
+  { id: '~anthropic/claude-fable-latest', label: 'Claude Fable (latest)' },
+  { id: 'z-ai/glm-5.2', label: 'GLM 5.2' },
   { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   { id: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
   { id: 'openai/gpt-5.4-mini', label: 'GPT-5.4 mini' },
