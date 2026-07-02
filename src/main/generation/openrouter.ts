@@ -97,45 +97,109 @@ interface ImageMessage {
 }
 
 export interface OpenRouterImageOptions {
-  /** OpenRouter aspect-ratio preset, e.g. "16:9"; passed via image_config. */
+  /** OpenRouter aspect-ratio preset, e.g. "16:9". */
   aspectRatio: string
   /**
-   * Whether the model emits images only. Image-only models (FLUX, Seedream) need
-   * `modalities: ["image"]`; text+image models (Gemini, GPT-Image) need both.
-   * `undefined` = custom/unknown model: try image-only first, then both.
+   * Which surface serves the model (see `OpenRouterImageModel.api`).
+   * `undefined` = custom/unknown slug: try every shape until one works.
+   */
+  api?: 'chat' | 'images'
+  /**
+   * Chat models only: whether the model emits images only. Image-only models
+   * (FLUX, Seedream) need `modalities: ["image"]`; text+image models (Gemini,
+   * GPT-Image chat wrappers) need both.
    */
   imageOnly?: boolean
 }
+
+type ImageAttempt = { via: 'chat'; modalities: ['image'] | ['image', 'text'] } | { via: 'images' }
 
 export async function openRouterImage(
   apiKey: string,
   model: string,
   prompt: string,
-  { aspectRatio, imageOnly }: OpenRouterImageOptions,
+  { aspectRatio, api, imageOnly }: OpenRouterImageOptions,
 ): Promise<{ bytes: Buffer; contentType: string }> {
-  const client = createClient(apiKey)
-  const attempts: Array<['image'] | ['image', 'text']> =
-    imageOnly === true ? [['image']] : imageOnly === false ? [['image', 'text']] : [['image'], ['image', 'text']]
+  const attempts: ImageAttempt[] =
+    api === 'images'
+      ? [{ via: 'images' }]
+      : imageOnly === true
+        ? [{ via: 'chat', modalities: ['image'] }]
+        : imageOnly === false
+          ? [{ via: 'chat', modalities: ['image', 'text'] }]
+          : [{ via: 'chat', modalities: ['image'] }, { via: 'chat', modalities: ['image', 'text'] }, { via: 'images' }]
 
   let lastErr: unknown
-  for (const modalities of attempts) {
+  for (const attempt of attempts) {
     try {
-      const res = await client.chat.completions.create({
-        model,
-        // `modalities` / `image_config` are OpenRouter extensions, not in the typed OpenAI union.
-        modalities,
-        image_config: { aspect_ratio: aspectRatio },
-        messages: [{ role: 'user', content: prompt }],
-      } as never)
-      const message = res.choices[0]?.message as unknown as ImageMessage | undefined
-      const url = message?.images?.[0]?.image_url?.url
-      if (url) return decodeDataUrl(url)
-      lastErr = new Error('OpenRouter returned no image')
+      return attempt.via === 'images'
+        ? await imagesApiGenerate(apiKey, model, prompt, aspectRatio)
+        : await chatGenerate(apiKey, model, prompt, aspectRatio, attempt.modalities)
     } catch (err) {
       lastErr = err
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error('OpenRouter returned no image')
+}
+
+async function chatGenerate(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  aspectRatio: string,
+  modalities: ['image'] | ['image', 'text'],
+): Promise<{ bytes: Buffer; contentType: string }> {
+  const client = createClient(apiKey)
+  const res = await client.chat.completions.create({
+    model,
+    // `modalities` / `image_config` are OpenRouter extensions, not in the typed OpenAI union.
+    modalities,
+    image_config: { aspect_ratio: aspectRatio },
+    messages: [{ role: 'user', content: prompt }],
+  } as never)
+  const message = res.choices[0]?.message as unknown as ImageMessage | undefined
+  const url = message?.images?.[0]?.image_url?.url
+  if (!url) throw new Error('OpenRouter returned no image')
+  return decodeDataUrl(url)
+}
+
+/** The Images API returns base64 bytes; `media_type` is only present for non-PNG (e.g. SVG). */
+interface ImagesApiResponse {
+  data?: Array<{ b64_json?: string; media_type?: string }>
+}
+
+async function imagesApiGenerate(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  aspectRatio: string,
+): Promise<{ bytes: Buffer; contentType: string }> {
+  const res = await fetch(`${OPENROUTER_BASE_URL}/images`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/json',
+      'HTTP-Referer': 'https://slopera.app',
+      'X-Title': 'Slopera',
+    },
+    // aspect_ratio and quality are normalized platform params: providers clamp or
+    // ignore what they don't support. quality low keeps token-priced GPT Image cheap
+    // for a browser that dreams several images per page.
+    body: JSON.stringify({ model, prompt, aspect_ratio: aspectRatio, quality: 'low' }),
+  })
+  if (!res.ok) throw new Error(`OpenRouter Images API responded ${res.status}`)
+  const json = (await res.json()) as ImagesApiResponse
+  const b64 = json.data?.[0]?.b64_json
+  if (!b64) throw new Error('OpenRouter Images API returned no image')
+  const bytes = Buffer.from(b64, 'base64')
+  return { bytes, contentType: json.data?.[0]?.media_type ?? sniffImageType(bytes) }
+}
+
+function sniffImageType(bytes: Buffer): string {
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return 'image/jpeg'
+  if (bytes.subarray(0, 4).toString('latin1') === 'RIFF' && bytes.subarray(8, 12).toString('latin1') === 'WEBP')
+    return 'image/webp'
+  return 'image/png'
 }
 
 function decodeDataUrl(url: string): { bytes: Buffer; contentType: string } {

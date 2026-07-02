@@ -47,16 +47,23 @@ export interface OpenRouterImageModel {
   id: string
   label: string
   /**
-   * Image-only models (FLUX, Seedream) require `modalities: ["image"]`; text+image
-   * models (Gemini, GPT-Image) require `["image", "text"]`. Drives request shaping.
+   * Which OpenRouter surface serves the model: 'chat' = chat completions with the
+   * `modalities` extension; 'images' = the dedicated Images API (`POST /images`).
+   * Some models (GPT Image) exist only on the Images API, not in the chat catalog.
    */
-  imageOnly: boolean
+  api: 'chat' | 'images'
+  /**
+   * Chat models only. Image-only models (FLUX, Seedream) require `modalities:
+   * ["image"]`; text+image models (Gemini, GPT-Image) require `["image", "text"]`.
+   */
+  imageOnly?: boolean
 }
 
 /** Curated OpenRouter image models; "Custom model…" in the UI covers anything else. */
 export const OPENROUTER_IMAGE_MODELS = [
-  { id: 'black-forest-labs/flux.2-klein-4b', label: 'FLUX.2 Klein 4B — fast & cheap', imageOnly: true },
-  { id: 'google/gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image (Nano Banana)', imageOnly: false },
+  { id: 'black-forest-labs/flux.2-klein-4b', label: 'FLUX.2 Klein 4B — fast & cheap', api: 'chat', imageOnly: true },
+  { id: 'google/gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image (Nano Banana)', api: 'chat', imageOnly: false },
+  { id: 'openai/gpt-image-2', label: 'GPT Image 2 — slow, sharper, pricier', api: 'images' },
 ] as const satisfies readonly OpenRouterImageModel[]
 
 /** Suggested-but-editable model when the user first switches to OpenRouter. */

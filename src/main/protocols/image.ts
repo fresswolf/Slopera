@@ -2,7 +2,7 @@ import type { Session } from 'electron'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { ImageModel } from '@shared/constants'
+import type { ImageModel, OpenRouterImageModel } from '@shared/constants'
 import {
   DEFAULT_IMAGE_MODEL,
   IMAGE_CONCURRENCY,
@@ -49,18 +49,21 @@ export function registerImageProtocol(ses: Session, settings: SettingsStore, ima
     }
 
     try {
+      const known: OpenRouterImageModel | undefined = OPENROUTER_IMAGE_MODELS.find((m) => m.id === modelId)
       const { bytes, contentType } = await sem.run(() =>
         falModel
           ? falGenerate(apiKey, falModel, prompt, w, h)
           : openRouterImage(apiKey, modelId, prompt, {
               aspectRatio: nearestAspectRatio(w, h),
-              imageOnly: OPENROUTER_IMAGE_MODELS.find((m) => m.id === modelId)?.imageOnly,
+              api: known?.api,
+              imageOnly: known?.imageOnly,
             }),
       )
       const ext = EXT_BY_TYPE[contentType]
       if (ext) writeFileSync(join(imagesDir, `${stem}.${ext}`), bytes)
       return imageResponse(bytes, contentType)
-    } catch {
+    } catch (err) {
+      console.error(`[slopera-img] ${modelId} failed for "${prompt.slice(0, 60)}":`, err)
       return imageResponse(Buffer.from(placeholderSvg(prompt, w, h)), 'image/svg+xml')
     }
   })

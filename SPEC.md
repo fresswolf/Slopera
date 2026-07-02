@@ -71,7 +71,7 @@ built like a product.
   Pages: Anthropic (Haiku 4.5 [default] / Sonnet 4.6 / Opus 4.8 / Fable 5) **or**
   OpenRouter (curated list, default `anthropic/claude-haiku-4.5`). Images:
   fal.ai (FLUX schnell [default] / GPT Image 2) **or** OpenRouter (FLUX.2 Klein
-  [default] / Gemini 2.5 Flash Image) — copy recommends fal.ai as the
+  [default] / Gemini 2.5 Flash Image / GPT Image 2) — copy recommends fal.ai as the
   fastest/cheapest. A provider whose key isn't saved is disabled ("key req'd");
   switching provider resets the model to that provider's default. At least an
   Anthropic **or** OpenRouter key is required to dream pages. The active text
@@ -244,15 +244,22 @@ failure becomes a proper error page rather than a broken stream.
 streaming) and `OpenRouterPageGenerator` (`openai` SDK pointed at OpenRouter's
 OpenAI-compatible API, streaming); the active one is resolved per request from
 `settings.textProvider` so a Settings change takes effect immediately. Images
-branch in the `slopera-img://` handler: fal.run REST, or OpenRouter
-chat-completions with image output. OpenRouter image-only models (FLUX, Seedream)
-require `modalities: ["image"]` while text+image models (Gemini, GPT Image)
-require `["image", "text"]`; the curated list tags each with an `imageOnly`
-flag, and a custom/unknown slug tries image-only first then both. Requested
-w/h map to the nearest `image_config.aspect_ratio` preset (OpenRouter image
-models don't take exact pixels); the image comes back as a base64 data-URL.
+branch in the `slopera-img://` handler: fal.run REST, or OpenRouter. OpenRouter
+serves image models on two surfaces, and the curated list tags each with an
+`api` flag: `'chat'` = chat completions with the `modalities` extension (the
+image comes back as a base64 data-URL on `message.images`), `'images'` = the
+dedicated Images API (`POST /images`, returns `data[0].b64_json`; models like
+GPT Image exist only there, not in the chat catalog). Chat image-only models
+(FLUX, Seedream) require `modalities: ["image"]` while text+image models
+(Gemini) require `["image", "text"]` — an `imageOnly` flag on chat entries. A
+custom/unknown slug tries chat image-only, then chat both, then the Images API.
+Requested w/h map to the nearest aspect-ratio preset (OpenRouter image models
+don't take exact pixels); on the Images API `quality: "low"` is also sent
+(ignored by providers without the knob) to keep token-priced models cheap.
 OpenRouter is one shared key across pages and images. The active model id is
-part of every image cache key, so switching engines re-dreams.
+part of every image cache key, so switching engines re-dreams. Image failures
+log the underlying error to the main-process console before falling back to
+the placeholder SVG.
 
 ### Security model
 Generated pages execute LLM-written JS, so tab views are hostile-by-default:
