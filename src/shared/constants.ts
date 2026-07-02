@@ -10,6 +10,9 @@ export const TAB_PARTITION = 'persist:slopweb'
 /** Height of the browser chrome (tab strip + toolbar + bookmarks bar) in px. */
 export const CHROME_HEIGHT = 120
 
+/** Height of the lens-mismatch infobar; the tab view shifts down by this while it shows. */
+export const LENS_BANNER_HEIGHT = 32
+
 export const MODELS = [
   { id: 'claude-haiku-4-5', label: 'Haiku 4.5 — fast, maximum slop' },
   { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6 — balanced' },

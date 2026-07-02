@@ -61,6 +61,16 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.on('tabs:reload', () => tabs.reload())
   ipcMain.on('tabs:stop', () => tabs.stop())
   ipcMain.on('tabs:home', () => tabs.home())
+  ipcMain.on('tabs:dismiss-banner', () => tabs.dismissBanner())
+
+  // Lens-mismatch banners compare each tab's served lens against the active
+  // one, so any settings path that can move the active lens must poke the tabs.
+  const watchLens = <T>(fn: () => T): T => {
+    const before = settings.lens
+    const result = fn()
+    if (settings.lens !== before) tabs.lensChanged()
+    return result
+  }
 
   ipcMain.on('ui:set-overlay', (_e, open: unknown) => {
     tabs.setOverlay(open === true)
@@ -89,13 +99,13 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle('settings:get', () => settings.view())
   ipcMain.handle('settings:set', (_e, update: unknown) => {
     const parsed = settingsUpdateSchema.safeParse(update)
-    return parsed.success ? settings.update(parsed.data) : settings.view()
+    return parsed.success ? watchLens(() => settings.update(parsed.data)) : settings.view()
   })
 
   ipcMain.handle('lenses:add', (_e, label: unknown, instructions: unknown) => {
     const l = z.string().trim().min(1).max(40).safeParse(label)
     const i = z.string().trim().min(1).max(2000).safeParse(instructions)
-    return l.success && i.success ? settings.addLens(l.data, i.data) : settings.view()
+    return l.success && i.success ? watchLens(() => settings.addLens(l.data, i.data)) : settings.view()
   })
   ipcMain.handle('lenses:update', (_e, id: unknown, label: unknown, instructions: unknown) => {
     const idParsed = z.string().max(64).safeParse(id)
@@ -107,7 +117,7 @@ export function registerIpc(deps: IpcDeps): void {
   })
   ipcMain.handle('lenses:remove', (_e, id: unknown) => {
     const parsed = z.string().max(64).safeParse(id)
-    return parsed.success ? settings.removeLens(parsed.data) : settings.view()
+    return parsed.success ? watchLens(() => settings.removeLens(parsed.data)) : settings.view()
   })
 
   ipcMain.handle('cache:stats', (): CacheStats => cacheStats(pages, imagesDir))

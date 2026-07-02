@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BookmarksBar } from './components/BookmarksBar'
 import { HistoryPanel } from './components/HistoryPanel'
+import { LensBanner } from './components/LensBanner'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TabStrip } from './components/TabStrip'
 import { Toolbar } from './components/Toolbar'
@@ -29,6 +30,7 @@ export default function App() {
       <TabStrip />
       <Toolbar />
       <BookmarksBar />
+      <LensBanner />
       <div className="relative flex-1 bg-zinc-950">
         {overlay === 'history' && <HistoryPanel />}
         {overlay === 'settings' && <SettingsPanel />}

@@ -6,6 +6,10 @@ export interface TabState {
   loading: boolean
   canGoBack: boolean
   canGoForward: boolean
+  /** Lens the displayed snapshot was dreamed in (null for internal pages). */
+  servedLens: string | null
+  /** True when the lens-mismatch infobar should show for this tab. */
+  bannerVisible: boolean
 }
 
 export interface TabsSnapshot {
@@ -74,6 +78,7 @@ export interface SloperaApi {
     reload: () => void
     stop: () => void
     home: () => void
+    dismissBanner: () => void
   }
   onTabsState: (cb: (snapshot: TabsSnapshot) => void) => () => void
   onFocusOmnibox: (cb: () => void) => () => void

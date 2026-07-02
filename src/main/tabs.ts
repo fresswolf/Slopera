@@ -1,6 +1,6 @@
 import { WebContentsView } from 'electron'
 import type { BrowserWindow, WebContents } from 'electron'
-import { CHROME_HEIGHT, HOME_URL, TAB_PARTITION } from '@shared/constants'
+import { CHROME_HEIGHT, HOME_URL, LENS_BANNER_HEIGHT, TAB_PARTITION } from '@shared/constants'
 import { httpToSlopera, normalizePageUrl, urlToDisplay } from '@shared/omnibox'
 import type { TabsSnapshot } from '@shared/types'
 import type { SettingsStore } from './settings'
@@ -11,6 +11,10 @@ interface Tab {
   view: WebContentsView
   /** Suppress the next did-navigate history record (back/forward/re-dream). */
   skipHistoryOnce: boolean
+  /** Lens the current page was dreamed in, captured at navigation time. */
+  servedLens: string | null
+  /** X on the mismatch infobar; cleared on navigation and lens change. */
+  bannerDismissed: boolean
 }
 
 export interface TabManagerDeps {
@@ -19,6 +23,10 @@ export interface TabManagerDeps {
   markForRegen: (url: string, lens: string) => void
   /** Tell the page protocol which page a navigation came from (no referrer exists). */
   recordParent: (childUrl: string, parentUrl: string) => void
+  /** Ask the page protocol which lens it served a URL from (cross-lens fallback). */
+  servedLensFor: (normUrl: string) => string | null
+  /** Whether a snapshot of this URL exists under this lens. */
+  hasSnapshot: (normUrl: string, lens: string) => boolean
 }
 
 export class TabManager {
@@ -51,7 +59,7 @@ export class TabManager {
       },
     })
     view.setBackgroundColor('#ffffff')
-    const tab: Tab = { id, view, skipHistoryOnce: false }
+    const tab: Tab = { id, view, skipHistoryOnce: false, servedLens: null, bannerDismissed: false }
     this.tabs.set(id, tab)
     this.order.push(id)
     this.wire(tab)
@@ -134,6 +142,37 @@ export class TabManager {
     this.activeWc()?.stop()
   }
 
+  /** X on the lens-mismatch infobar: hide it until the next navigation or lens change. */
+  dismissBanner(): void {
+    const tab = this.active()
+    if (!tab) return
+    tab.bannerDismissed = true
+    this.emit()
+  }
+
+  /**
+   * The active lens changed. Tabs whose page already exists under the new lens
+   * restore that snapshot immediately (a plain reload — the exact-lens cache
+   * hit wins); only tabs without one keep their cross-lens page and get the
+   * mismatch banner. Dismissals reset either way.
+   */
+  lensChanged(): void {
+    const lens = this.deps.settings.lens
+    for (const tab of this.tabs.values()) {
+      tab.bannerDismissed = false
+      const wc = tab.view.webContents
+      // Don't yank a page that's mid-dream; the banner covers it after loading.
+      if (wc.isLoading()) continue
+      if (tab.servedLens === null || tab.servedLens === lens) continue
+      const norm = normalizePageUrl(wc.getURL())
+      if (norm && this.deps.hasSnapshot(norm, lens)) {
+        tab.skipHistoryOnce = true
+        wc.reload()
+      }
+    }
+    this.emit()
+  }
+
   home(): void {
     const wc = this.activeWc()
     if (wc) void wc.loadURL(HOME_URL)
@@ -174,6 +213,8 @@ export class TabManager {
           loading: wc.isLoading(),
           canGoBack: wc.navigationHistory.canGoBack(),
           canGoForward: wc.navigationHistory.canGoForward(),
+          servedLens: t.servedLens,
+          bannerVisible: this.bannerVisible(t),
         }
       })
     return { tabs, activeId: this.activeId }
@@ -226,12 +267,16 @@ export class TabManager {
     })
 
     wc.on('did-navigate', (_event, url) => {
+      const norm = normalizePageUrl(url)
+      tab.servedLens = norm ? this.deps.servedLensFor(norm) : null
+      tab.bannerDismissed = false
       if (tab.skipHistoryOnce) {
         tab.skipHistoryOnce = false
       } else {
-        const norm = normalizePageUrl(url)
         if (norm && new URL(norm).host !== 'home') {
-          this.deps.history.add(norm, urlToDisplay(norm), this.deps.settings.lens)
+          // Record the lens you actually saw — a cross-lens cache hit is a
+          // property of the snapshot, not of the dropdown at the time.
+          this.deps.history.add(norm, urlToDisplay(norm), tab.servedLens ?? this.deps.settings.lens)
         }
       }
       this.emit()
@@ -249,15 +294,26 @@ export class TabManager {
     wc.on('did-fail-load', () => this.emit())
   }
 
+  private bannerVisible(tab: Tab): boolean {
+    // A streaming page is being dreamed in the active lens; nothing to report.
+    if (tab.view.webContents.isLoading()) return false
+    return (
+      tab.servedLens !== null && tab.servedLens !== this.deps.settings.lens && !tab.bannerDismissed
+    )
+  }
+
   private layout(): void {
     const [width, height] = this.win.getContentSize()
-    const bounds = { x: 0, y: CHROME_HEIGHT, width: width ?? 0, height: Math.max(0, (height ?? 0) - CHROME_HEIGHT) }
     for (const tab of this.tabs.values()) {
-      tab.view.setBounds(bounds)
+      const top = CHROME_HEIGHT + (this.bannerVisible(tab) ? LENS_BANNER_HEIGHT : 0)
+      tab.view.setBounds({ x: 0, y: top, width: width ?? 0, height: Math.max(0, (height ?? 0) - top) })
     }
   }
 
   private emit(): void {
+    // Banner visibility feeds both the snapshot and each tab's bounds; keep
+    // them in lockstep by re-laying-out on every state change.
+    this.layout()
     const snap = this.snapshot()
     for (const cb of this.listeners) cb(snap)
   }

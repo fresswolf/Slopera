@@ -20,6 +20,7 @@ const api: SloperaApi = {
     reload: () => ipcRenderer.send('tabs:reload'),
     stop: () => ipcRenderer.send('tabs:stop'),
     home: () => ipcRenderer.send('tabs:home'),
+    dismissBanner: () => ipcRenderer.send('tabs:dismiss-banner'),
   },
   onTabsState: (cb) => subscribe<TabsSnapshot>('tabs:state', cb),
   onFocusOmnibox: (cb) => subscribe<void>('ui:focus-omnibox', () => cb()),

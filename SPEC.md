@@ -24,7 +24,10 @@ built like a product.
   dropdown. Custom lenses can be edited or deleted in Settings (built-ins are
   fixed); editing keeps the lens id stable so already-dreamed pages persist
   until reloaded. The active lens is stamped onto every cached page; each lens
-  dreams its own cache.
+  dreams its own cache — for *writes*. Reads fall through: a cache miss under
+  the active lens serves the newest snapshot of that URL under **any** lens
+  (see Permanence semantics), so bookmarks and old haunts load instantly after
+  a lens switch instead of re-dreaming.
 - **Latency is aesthetic.** Pages stream in top-to-bottom like dial-up.
   Images trickle in afterwards, one by one.
 
@@ -125,8 +128,23 @@ built like a product.
 - Every generated page is **snapshotted to disk** (final HTML + images).
 - Back / Forward / history clicks / re-typed URLs → instant restore from
   snapshot. The past is stable.
+- **Cross-lens fallback:** if a URL has no snapshot under the active lens but
+  has one under another, the newest snapshot across all lenses is served
+  (every navigation: bookmarks, links, back/forward, typed URLs). A slim
+  infobar under the chrome then reports the mismatch — "dreamed in *X* —
+  re-dream it in *Y*?" — with a re-dream button (same as reload) and an X.
+  The banner is **reactive**: it also appears when the lens is switched while
+  viewing a page, and self-clears if the lens is switched back. Switching the
+  lens sweeps the open tabs first — any tab whose URL already has a snapshot
+  under the new lens restores it immediately (no banner); only tabs without
+  one keep their cross-lens page and get the banner. Dismissal is per-tab and
+  transient (cleared by navigation or lens change). History
+  records the lens actually *seen*, not the active one. Parent-page context
+  falls back across lenses too (content, not register); site bibles stay
+  strictly per-lens so registers never cross-contaminate.
 - **Reload re-dreams:** the reload button is the one escape hatch — it
-  explicitly regenerates the URL. The old snapshot stays in history.
+  explicitly regenerates the URL in the *active* lens (bypassing the
+  cross-lens fallback). The old snapshot stays in history.
 - Bonus: a fully cached profile is a **$0 demo mode**.
 
 ### Error states *(defaults chosen — veto anytime)*

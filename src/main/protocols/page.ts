@@ -51,11 +51,20 @@ export interface PageProtocolController {
    * it to honor the clicked link. Keyed by normalized child URL.
    */
   recordParent: (childUrl: string, parentUrl: string) => void
+  /**
+   * Which lens the last response for a normalized URL was dreamed in. Cache
+   * misses fall back to the newest snapshot under *any* lens, so this can
+   * differ from the active lens; the tab layer reads it after each navigation
+   * to drive the mismatch infobar and record honest history. Null for internal
+   * pages (onboarding, errors).
+   */
+  servedLensFor: (normUrl: string) => string | null
 }
 
 export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): PageProtocolController {
   const regenKeys = new Set<string>()
   const pendingParents = new Map<string, string>()
+  const servedLenses = new Map<string, string>()
   // HTML-so-far of in-flight (and mid-stream-abandoned) generations, keyed by
   // pageKey. Lets a link clicked before its page finished streaming still carry
   // context: the snapshot doesn't exist yet (finalize never ran), but the
@@ -66,6 +75,8 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
     try {
       return await handle(req)
     } catch (err) {
+      const norm = normalizePageUrl(req.url)
+      if (norm) servedLenses.delete(norm)
       return htmlResponse(errorHtml(req.url, String(err)), 500)
     }
   })
@@ -88,15 +99,24 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
     pendingParents.delete(norm)
 
     if (!force) {
-      const snap = deps.pages.latest(key)
+      // Exact lens first; else the newest snapshot of this URL under any lens.
+      // The past is served instantly — a mismatch surfaces as an infobar, and
+      // reload is the escape hatch that re-dreams in the active lens.
+      const snap = deps.pages.latest(key) ?? deps.pages.latestForUrl(norm)
       if (snap) {
         const html = deps.pages.read(snap.hash)
-        if (html !== null) return htmlResponse(html)
+        if (html !== null) {
+          servedLenses.set(norm, snap.lens)
+          return htmlResponse(html)
+        }
       }
     }
 
     const fake = process.env.SLOPERA_FAKE_GEN === '1'
-    if (!fake && !deps.settings.activeTextKey) return htmlResponse(onboardingHtml())
+    if (!fake && !deps.settings.activeTextKey) {
+      servedLenses.delete(norm)
+      return htmlResponse(onboardingHtml())
+    }
 
     const parsed = new URL(norm)
     const genReq: PageRequest = {
@@ -121,7 +141,9 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
     const norm = normalizePageUrl(parentUrl)
     if (!norm) return none
     const pkey = pageKey(norm, lens)
-    const snap = deps.pages.latest(pkey)
+    // Parent context is content, not register: if the parent was served from
+    // another lens's cache, that snapshot is still the page the link lived on.
+    const snap = deps.pages.latest(pkey) ?? deps.pages.latestForUrl(norm)
     let html = snap ? deps.pages.read(snap.hash) : null
     let summary = snap?.summary ?? null
     if (!html) {
@@ -148,8 +170,10 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
     try {
       first = await iterator.next()
     } catch (err) {
+      servedLenses.delete(genReq.url)
       return htmlResponse(errorHtml(genReq.url, errMessage(err)), 502)
     }
+    servedLenses.set(genReq.url, genReq.lens)
 
     const stripper = new FenceStripper()
     const encoder = new TextEncoder()
@@ -236,6 +260,9 @@ export function registerPageProtocol(ses: Session, deps: PageProtocolDeps): Page
     recordParent(childUrl, parentUrl) {
       const norm = normalizePageUrl(childUrl)
       if (norm) pendingParents.set(norm, parentUrl)
+    },
+    servedLensFor(normUrl) {
+      return servedLenses.get(normUrl) ?? null
     },
   }
 }

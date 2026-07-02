@@ -10,6 +10,7 @@ import {
   PAGE_SCHEME,
   TAB_PARTITION,
 } from '@shared/constants'
+import { pageKey } from '@shared/omnibox'
 import { AnthropicPageGenerator } from './generation/anthropic'
 import { OpenRouterPageGenerator } from './generation/openrouter'
 import { FixturePageGenerator } from './generation/fixture'
@@ -140,6 +141,8 @@ app.whenReady().then(() => {
     history,
     markForRegen: pageCtl.markForRegen,
     recordParent: pageCtl.recordParent,
+    servedLensFor: pageCtl.servedLensFor,
+    hasSnapshot: (normUrl, lens) => pages.latest(pageKey(normUrl, lens)) !== null,
   })
   tabs.onState((snapshot) => {
     if (!win.isDestroyed()) win.webContents.send('tabs:state', snapshot)

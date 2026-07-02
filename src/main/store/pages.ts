@@ -43,6 +43,14 @@ export class PagesStore {
     return row ?? null
   }
 
+  /** Most recent hallucination of a URL under any lens — the cross-lens fallback. */
+  latestForUrl(url: string): PageRecord | null {
+    const row = this.db
+      .prepare('SELECT * FROM pages WHERE url = ? ORDER BY created_at DESC, id DESC LIMIT 1')
+      .get(url) as PageRow | undefined
+    return row ?? null
+  }
+
   insert(args: { key: string; url: string; lens: string; title: string | null; summary: string; html: string }): PageRecord {
     const prev = this.latest(args.key)
     const gen = (prev?.gen ?? 0) + 1
