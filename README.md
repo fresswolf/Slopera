@@ -6,6 +6,8 @@ Slopera is a desktop browser that never touches the real web. Type any URL (real
 
 ![A page streaming into a tab](fishrain.gif)
 
+*The Google and Reddit above are not real. Every page, all its text and images, is made up on the spot.*
+
 ## Running it
 
 Grab an installer for macOS, Windows or Linux from the
