@@ -4,7 +4,7 @@
 
 Slopera is a desktop browser that never touches the real web. Type any URL (real or invented) and the page is **hallucinated on the fly** by an LLM.
 
-<!-- TODO: demo GIF — a page streaming into a tab -->
+![A page streaming into a tab](fishrain.gif)
 
 ## Running it
 
