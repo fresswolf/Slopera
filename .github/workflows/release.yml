@@ -94,6 +94,37 @@ jobs:
       - run: npm run build
       - name: Package Linux (AppImage, x64 + arm64)
         run: npx electron-builder --linux AppImage --x64 --arm64 --publish never
+      # electron-builder embeds an old dynamically-linked AppImage runtime whose
+      # arm64 build needs the unversioned libz.so (shipped only in zlib1g-dev).
+      # Splice in the statically-linked type2-runtime instead; it also drops the
+      # libfuse2 requirement (needs only fusermount3, default on modern distros).
+      # An AppImage is the runtime ELF with a squashfs appended at the runtime's
+      # ELF-computed size, so the swap is: cut at the old runtime's size, verify
+      # the squashfs magic, prepend the new runtime.
+      - name: Swap in static AppImage runtime
+        run: |
+          set -euo pipefail
+          for arch in x86_64 aarch64; do
+            curl -fsSLo "runtime-$arch" "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-$arch"
+          done
+          for img in release/*.AppImage; do
+            case "$img" in *arm64*) rt=runtime-aarch64 ;; *) rt=runtime-x86_64 ;; esac
+            # squashfs offset = e_shoff + e_shentsize * e_shnum of the runtime ELF
+            offset=$(python3 -c "import struct,sys;d=open(sys.argv[1],'rb').read(64);print(struct.unpack_from('<Q',d,0x28)[0]+struct.unpack_from('<H',d,0x3a)[0]*struct.unpack_from('<H',d,0x3c)[0])" "$img")
+            python3 -c "import sys;f=open(sys.argv[1],'rb');f.seek(int(sys.argv[2]));assert f.read(4)==b'hsqs','squashfs not at expected offset in '+sys.argv[1]" "$img" "$offset"
+            tail -c "+$((offset + 1))" "$img" | cat "$rt" - > "$img.tmp"
+            mv "$img.tmp" "$img"
+            chmod +x "$img"
+          done
+      # Prove the swapped runtime boots and can locate its payload (x64 only —
+      # the arm64 binary can't execute on this runner).
+      - name: Smoke-test x64 AppImage extraction
+        run: |
+          set -euo pipefail
+          img=$(ls release/*.AppImage | grep -v arm64)
+          workdir=$(mktemp -d)
+          (cd "$workdir" && "$GITHUB_WORKSPACE/$img" --appimage-extract > /dev/null)
+          test -x "$workdir/squashfs-root/AppRun"
       - uses: actions/upload-artifact@v7
         with:
           name: slopera-linux
