@@ -4,12 +4,20 @@
 
 Slopera is a desktop browser that never touches the real web. Type any URL (real or invented) and the page is **hallucinated on the fly** by an LLM.
 
-![A page streaming into a tab](fishrain.gif)
+
+
+https://github.com/user-attachments/assets/8501b84e-ae59-4b13-8395-702df8cbcccb
+
+
 
 *The Google and Reddit above are not real. Every page, all its text and images, is made up on the spot.*
 
-## Also works with interactive web apps
-![Interactive game](game.gif)
+### Also works with interactive web apps
+
+
+https://github.com/user-attachments/assets/2e068f61-1eff-45ae-be8f-5aa8fb2bf662
+
+
 
 *The HTML game above was dreamed up by AI.*
 
