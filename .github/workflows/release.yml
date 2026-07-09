@@ -92,8 +92,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Package Linux (AppImage)
-        run: npx electron-builder --linux AppImage --x64 --publish never
+      - name: Package Linux (AppImage, x64 + arm64)
+        run: npx electron-builder --linux AppImage --x64 --arm64 --publish never
       - uses: actions/upload-artifact@v7
         with:
           name: slopera-linux
