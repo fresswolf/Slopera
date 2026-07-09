@@ -6,6 +6,7 @@
 #   build/icon-desktop.png            — Windows/Linux, nearly full-bleed; those
 #                                        platforms don't apply the macOS mask, so
 #                                        the shrunken art looks lost on them.
+#   logo-small.png                    — 50x50, inline logo in the README title.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -40,6 +41,16 @@ PY
 render build/icon.png "$scale"
 render build/icon-desktop.png "$scale_desktop"
 
+python3 - "$src" logo-small.png <<'PY'
+import sys
+from PIL import Image
+
+src, out = sys.argv[1], sys.argv[2]
+logo = Image.open(src).convert("RGBA")
+logo.resize((50, 50), Image.LANCZOS).save(out)
+print(f"downscaled {src} to 50x50 {out}")
+PY
+
 iconset="$(mktemp -d)/icon.iconset"
 mkdir -p "$iconset"
 for s in 16 32 128 256 512; do
@@ -50,4 +61,4 @@ done
 iconutil -c icns "$iconset" -o build/icon.icns
 
 echo "icons regenerated:"
-file build/icon.png build/icon.icns build/icon-desktop.png
+file build/icon.png build/icon.icns build/icon-desktop.png logo-small.png

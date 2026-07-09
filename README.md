@@ -1,4 +1,4 @@
-# Slopera
+# Sl<sub><img src="logo-small.png" alt="o" width="28" height="28"></sub>pera
 
 *The browser for the slop era.*
 
