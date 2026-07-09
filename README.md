@@ -13,6 +13,27 @@ Slopera is a desktop browser that never touches the real web. Type any URL (real
 
 *The HTML game above was dreamed up by AI.*
 
+## Lenses
+
+A **lens** is the register the whole web gets dreamed in. Pick one from the
+toolbar dropdown:
+
+- **Straight**: earnest renditions of real sites, filled with plausible
+  content that never existed.
+- **Extra slop**: maximum algorithm-poisoned internet: impossible products,
+  listicles that lose count, too many call-to-action buttons.
+- **1998**: every site as its Geocities-era self: table layouts, hit
+  counters, "best viewed in Netscape Navigator 4".
+- **Childlike**: pages as drawn by a 6-year-old with crayons.
+
+![Childlike](childlike.png)
+![1998](1998.png)
+
+You can also create your own lens in **Settings**: give it a name and a short
+flavor prompt, and it appears in the dropdown alongside the built-ins. Each
+lens keeps its own cache of dreamed pages, so switching lenses lets you
+revisit the same URL in a different reality.
+
 ## Running it
 
 Grab an installer for macOS, Windows or Linux from the
@@ -26,8 +47,8 @@ npm run dev
 
 Either way, open Settings (gear icon) and paste:
 
-- an **API key** from **Anthropic** or **OpenRouter**  — required, dreams the pages
-- a **fal.ai key** — optional, generates images. With an OpenRouter key you can instead pick from alternative (but slower) image models served via OpenRouter. Without either, images degrade into captioned placeholders.
+- an **API key** from **Anthropic** or **OpenRouter**. Required, dreams the pages
+- a **fal.ai key**. Optional, generates images. With an OpenRouter key you can instead pick from alternative (but slower) image models served via OpenRouter. Without either, images degrade into captioned placeholders.
 
 Keys are stored encrypted via the OS keychain (`safeStorage`) and only ever
 sent to their respective APIs. Browsing already-dreamed pages costs nothing.
@@ -37,13 +58,13 @@ sent to their respective APIs. Browsing already-dreamed pages costs nothing.
 
 ### Getting API keys
 
-- **OpenRouter** — go to <https://openrouter.ai/> and click "Sign Up", add credits at
+- **OpenRouter**: go to <https://openrouter.ai/> and click "Sign Up", add credits at
   <https://openrouter.ai/settings/credits>, then create a new API key at
   <https://openrouter.ai/workspaces/default/keys>.
-- **fal.ai** — go to <https://fal.ai/> and click "Get Started" to create an account, top up at
+- **fal.ai**: go to <https://fal.ai/> and click "Get Started" to create an account, top up at
   <https://fal.ai/dashboard/usage-billing/credits>, then create an API key at
   <https://fal.ai/dashboard/keys>.
-- **Claude (Anthropic)** — create an account at <https://platform.claude.com/>, add funds through
+- **Claude (Anthropic)**: create an account at <https://platform.claude.com/>, add funds through
   <https://platform.claude.com/dashboard>, then create a key at
   <https://platform.claude.com/settings/workspaces/default/keys>.
 
@@ -52,12 +73,12 @@ sent to their respective APIs. Browsing already-dreamed pages costs nothing.
 Every page is a fresh LLM generation, so depending on your model settings
 Slopera can burn through tokens quickly. Pick your trade-off in Settings:
 
-- **Fast & cheap** — **Claude Haiku** is currently the fastest text model at a
+- **Fast & cheap**: **Claude Haiku** is currently the fastest text model at a
   reasonable token cost, and **FLUX schnell** (only available via fal.ai) is
   super fast and cheap for images. A good default for casual browsing.
-- **High fidelity** — for rich, interactive pages (working web apps, games)
+- **High fidelity**: for rich, interactive pages (working web apps, games)
   you may need bigger models like **Claude Opus**, paired with a higher-end
-  image model such as **GPT Image 2**. Noticeably slower and pricier per page.
+  image model such as **GPT Image 2**. Noticeably slower and pricier per page. **GLM 5.2** has been shown to give high fidelity at a comparably low cost, but it's slow.
 
 ## Development
 
