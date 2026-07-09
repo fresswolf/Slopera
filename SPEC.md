@@ -299,8 +299,9 @@ tests/e2e/       playwright smoke test (fixture generator, no API)
 - **CI (GitHub Actions, `.github/workflows/release.yml`):** a cheap `check`
   gate (lint + typecheck + vitest) on every push/PR, then per-platform build
   jobs on native runners — `windows` (NSIS + zip, x64 + arm64), `macos` (dmg,
-  x64 + arm64, unsigned), `linux` (AppImage, x64). Pushing a `v*` tag collects
-  all artifacts and **auto-publishes** a GitHub Release.
+  x64 + arm64, signed + notarized when the signing secrets are present — see
+  below), `linux` (AppImage, x64). Pushing a `v*` tag collects all artifacts
+  and **auto-publishes** a GitHub Release.
 - **Tests where logic is real:** omnibox parsing (URL vs query), fence
   stripping, lens resolution/slugging, prompt building, link/summary
   extraction, download-target sanitization — all in `src/shared/` or
@@ -309,11 +310,17 @@ tests/e2e/       playwright smoke test (fixture generator, no API)
   fixture page renders.
 - **Platforms:** multi-platform — installers ship for macOS, Windows and Linux
   as equals, each with native window chrome. Code and electron-builder config
-  are platform-clean. macOS signing/notarization deferred (needs an Apple dev
-  account — open item).
+  are platform-clean.
+- **macOS signing/notarization:** `electron-builder.yml` sets
+  `hardenedRuntime: true` + `notarize: true` (electron-builder's default
+  Electron entitlements). CI imports a Developer ID Application certificate
+  from the `CSC_LINK`/`CSC_KEY_PASSWORD` secrets and notarizes via
+  `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`. When creds are
+  absent (local builds, fork PRs) electron-builder warns and falls back to an
+  unsigned build, so nothing breaks without the secrets.
 
 ## 5. Out of scope for v1 (stretch)
 Two-phase fast-layout generation · dreamed image downloads (reusing
 `slopera-dl://`) · view-source easter egg · find-in-page · tab drag-reorder ·
 bookmark edit/reorder · shared gallery of best pages · Ollama/local model
-support · signed/notarized builds.
+support · Windows code signing.

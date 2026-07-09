@@ -14,13 +14,13 @@ npm test             # vitest unit tests (tests/unit/)
 npx vitest run tests/unit/omnibox.test.ts   # single test file
 npm run build        # electron-vite production build → out/
 npm run test:e2e     # playwright smoke test — requires `npm run build` first (launches out/main/index.js)
-npm run package:mac  # unsigned .dmg → release/ (also package:win, package:linux)
+npm run package:mac  # .dmg → release/ (signed if a Developer ID cert is in the keychain, else unsigned; also package:win, package:linux)
 npm run icons        # regenerate app icons from logo.png
 ```
 
 `SLOPERA_FAKE_GEN=1 npm run dev` runs against a canned offline generator (`src/main/generation/fixture.ts`) — no API keys, no cost. Use it for UI work; the e2e test uses it too. `SLOPERA_USER_DATA=<dir>` overrides the profile directory (used by e2e for a throwaway profile).
 
-CI is **GitHub Actions** (`.github/workflows/release.yml`): a cheap `check` gate (lint + typecheck + unit tests) runs on every push/PR, then per-platform jobs build the installers on native runners — `windows` (NSIS + zip, x64 + arm64), `macos` (dmg, x64 + arm64, unsigned), and `linux` (AppImage, x64). Pushing a `v*` tag collects all platforms' artifacts and auto-publishes a GitHub Release.
+CI is **GitHub Actions** (`.github/workflows/release.yml`): a cheap `check` gate (lint + typecheck + unit tests) runs on every push/PR, then per-platform jobs build the installers on native runners — `windows` (NSIS + zip, x64 + arm64), `macos` (dmg, x64 + arm64, signed + notarized via the `CSC_LINK`/`CSC_KEY_PASSWORD`/`APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID` secrets, falling back to unsigned when they're absent), and `linux` (AppImage, x64). Pushing a `v*` tag collects all platforms' artifacts and auto-publishes a GitHub Release.
 
 ## Architecture
 

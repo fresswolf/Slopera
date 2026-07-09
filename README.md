@@ -8,6 +8,11 @@ Slopera is a desktop browser that never touches the real web. Type any URL (real
 
 *The Google and Reddit above are not real. Every page, all its text and images, is made up on the spot.*
 
+## Also works with interactive web apps
+![Interactive game](game.gif)
+
+*The HTML game above was dreamed up by AI.*
+
 ## Running it
 
 Grab an installer for macOS, Windows or Linux from the
@@ -30,6 +35,30 @@ sent to their respective APIs. Browsing already-dreamed pages costs nothing.
 > **Use at your own risk.** Every freshly dreamed page and image is a paid API
 > call billed to your keys, and generated content is unmoderated LLM output.
 
+### Getting API keys
+
+- **OpenRouter** — go to <https://openrouter.ai/> and click "Sign Up", add credits at
+  <https://openrouter.ai/settings/credits>, then create a new API key at
+  <https://openrouter.ai/workspaces/default/keys>.
+- **fal.ai** — go to <https://fal.ai/> and click "Get Started" to create an account, top up at
+  <https://fal.ai/dashboard/usage-billing/credits>, then create an API key at
+  <https://fal.ai/dashboard/keys>.
+- **Claude (Anthropic)** — create an account at <https://platform.claude.com/>, add funds through
+  <https://platform.claude.com/dashboard>, then create a key at
+  <https://platform.claude.com/settings/workspaces/default/keys>.
+
+### Fidelity vs. speed vs. cost
+
+Every page is a fresh LLM generation, so depending on your model settings
+Slopera can burn through tokens quickly. Pick your trade-off in Settings:
+
+- **Fast & cheap** — **Claude Haiku** is currently the fastest text model at a
+  reasonable token cost, and **FLUX schnell** (only available via fal.ai) is
+  super fast and cheap for images. A good default for casual browsing.
+- **High fidelity** — for rich, interactive pages (working web apps, games)
+  you may need bigger models like **Claude Opus**, paired with a higher-end
+  image model such as **GPT Image 2**. Noticeably slower and pricier per page.
+
 ## Development
 
 ```sh
@@ -38,7 +67,7 @@ npm run lint          # eslint
 npm test              # vitest: omnibox parsing, fence-stripping, prompts, extraction
 npm run build         # electron-vite production build
 npm run test:e2e      # playwright: boots the built app (run `npm run build` first)
-npm run package:mac   # unsigned .dmg into release/
+npm run package:mac   # .dmg into release/
 npm run package:win   # NSIS installer (x64) into release/
 npm run package:linux # AppImage (x64) into release/
 npm run icons         # regenerate app icons from logo.png

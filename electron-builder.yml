@@ -8,8 +8,11 @@ files:
 mac:
   target: dmg
   category: public.app-category.entertainment
-  # unsigned for now — set identity + notarize when an Apple dev account exists
-  identity: null
+  # Signing identity comes from the keychain (CI imports it via CSC_LINK/CSC_KEY_PASSWORD).
+  # Notarization creds come from APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID env vars;
+  # when absent (local dev, fork PRs) electron-builder warns and produces an unsigned build.
+  hardenedRuntime: true
+  notarize: true
 win:
   target: nsis
   # full-bleed art — Windows doesn't apply the macOS rounded mask/padding

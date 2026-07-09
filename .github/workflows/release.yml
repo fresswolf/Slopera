@@ -63,9 +63,18 @@ jobs:
       - run: npm ci
       - run: npm run build
       # macos-latest is arm64; electron-builder cross-builds the x64 dmg by pulling
-      # the x64 Electron. Both are unsigned for now (identity: null in builder cfg).
+      # the x64 Electron. Signing + notarization run when the secrets are present
+      # (repo pushes/tags); fork PRs get no secrets and fall back to unsigned.
       - name: Package macOS (x64 + arm64)
         run: npx electron-builder --mac dmg --x64 --arm64 --publish never
+        env:
+          # base64-encoded Developer ID Application .p12 + its export password
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # notarization (notarytool via @electron/notarize)
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       - uses: actions/upload-artifact@v7
         with:
           name: slopera-macos
