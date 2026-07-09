@@ -37,12 +37,16 @@ built like a product.
 - Tab strip: open / close / switch; resizable window (standard Electron).
 - Window chrome is platform-specific (`src/main/index.ts`): macOS uses
   `titleBarStyle: 'hiddenInset'` (traffic lights inset into the tab strip, which
-  pads `pl-[84px]` to clear them). Windows goes frameless (`titleBarStyle:
-  'hidden'`) with a native control overlay (`titleBarOverlay`) painted inside
-  the 38px tab strip (the strip reserves `pr-[140px]` for it) and an
-  auto-hidden menu bar (revealed with Alt) — collapsing the OS title bar, menu,
-  and tab strip into a single Chrome-style row. The renderer learns the OS via
-  `window.slopera.platform` (exposed through preload).
+  pads `pl-[84px]` to clear them). Windows and Linux go frameless
+  (`titleBarStyle: 'hidden'`) with a native control overlay (`titleBarOverlay`)
+  painted inside the 38px tab strip (the strip reserves `pr-[140px]` for it)
+  and an auto-hidden menu bar (revealed with Alt) — collapsing the OS title
+  bar, menu, and tab strip into a single Chrome-style row. The renderer learns
+  the OS via `window.slopera.platform` (exposed through preload).
+- The main window is created hidden and shown on `ready-to-show`, with a 3s
+  fallback timer: environments whose GPU presentation never produces a first
+  frame (VMs without 3D acceleration) would otherwise never fire the event and
+  the app would run with no visible window.
 - Back / Forward / Reload / Home buttons; the Reload button becomes Stop while
   a page is streaming.
 - Omnibox: accepts URLs (`wikipedia.org`, `http://calculator.com`) and

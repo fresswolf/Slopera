@@ -106,19 +106,17 @@ app.whenReady().then(() => {
   })
 
   // Window chrome is platform-specific. macOS keeps the inset title bar with
-  // its traffic lights; Windows goes frameless with a native control overlay
-  // painted inside our 38px tab strip (see TabStrip) and an auto-hidden menu
-  // bar (revealed with Alt) so we collapse to a single Chrome-style top row.
+  // its traffic lights; Windows and Linux go frameless with a native control
+  // overlay painted inside our 38px tab strip (see TabStrip) and an auto-hidden
+  // menu bar (revealed with Alt) so we collapse to a single Chrome-style top row.
   const chrome: Partial<BrowserWindowConstructorOptions> =
     process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' }
-      : process.platform === 'win32'
-        ? {
-            titleBarStyle: 'hidden',
-            titleBarOverlay: { color: '#18181b', symbolColor: '#a1a1aa', height: 38 },
-            autoHideMenuBar: true,
-          }
-        : {}
+      : {
+          titleBarStyle: 'hidden',
+          titleBarOverlay: { color: '#18181b', symbolColor: '#a1a1aa', height: 38 },
+          autoHideMenuBar: true,
+        }
 
   const win = new BrowserWindow({
     width: 1280,
@@ -154,7 +152,17 @@ app.whenReady().then(() => {
   registerIpc({ tabs, settings, history, bookmarks, pages, bibles, imagesDir })
   buildMenu(tabs, win)
 
-  win.once('ready-to-show', () => win.show())
+  // Environments with broken GPU presentation (VMs without 3D, exotic Wayland
+  // compositors) can fail to ever produce a first frame, so 'ready-to-show'
+  // never fires and the app would run invisibly. Show after a grace period
+  // regardless — a brief flash of background color beats no window at all.
+  const showFallback = setTimeout(() => {
+    if (!win.isDestroyed()) win.show()
+  }, 3000)
+  win.once('ready-to-show', () => {
+    clearTimeout(showFallback)
+    win.show()
+  })
 
   if (process.env.ELECTRON_RENDERER_URL) {
     void win.loadURL(process.env.ELECTRON_RENDERER_URL)

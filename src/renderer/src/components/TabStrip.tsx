@@ -5,7 +5,7 @@ import { useUI } from '../store'
 // the left (macOS), or the caption-control overlay on the right (Windows).
 const platform = window.slopera.platform
 const controlPadding =
-  platform === 'darwin' ? 'pl-[84px]' : platform === 'win32' ? 'pr-[140px]' : ''
+  platform === 'darwin' ? 'pl-[84px]' : 'pr-[140px]'
 
 export function TabStrip() {
   const tabs = useUI((s) => s.tabs)
